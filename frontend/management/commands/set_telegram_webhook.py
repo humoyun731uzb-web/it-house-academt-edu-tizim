@@ -1,17 +1,23 @@
+import os
 import requests
 from django.core.management.base import BaseCommand
-from frontend.student_api import BOT_TOKEN
+from django.conf import settings
 
 
 class Command(BaseCommand):
     help = "Telegram bot webhookini sozlash"
 
     def handle(self, *args, **options):
+        token = settings.BOT_TOKEN
+        if not token:
+            self.stdout.write(self.style.ERROR("BOT_TOKEN topilmadi!"))
+            return
+
         url = "https://it-house-academt-edu-tizim-production.up.railway.app/api/telegram-webhook/"
         self.stdout.write(f"Webhook sozlanmoqda: {url}\n")
         try:
             r = requests.post(
-                f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook",
+                f"https://api.telegram.org/bot{token}/setWebhook",
                 json={"url": url},
                 timeout=10,
             )

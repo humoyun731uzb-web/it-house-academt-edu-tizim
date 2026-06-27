@@ -23,7 +23,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   sendCode(phone: string) {
-    return request<{ success: boolean; message: string; code: string; telegram_connected: boolean }>("/send-code/", {
+    return request<{ success: boolean; message: string; telegram_connected: boolean }>("/send-code/", {
       method: "POST",
       body: JSON.stringify({ phone }),
     })
