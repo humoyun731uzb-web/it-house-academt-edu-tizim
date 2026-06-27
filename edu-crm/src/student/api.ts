@@ -7,7 +7,7 @@ import type {
   ScheduleDay,
 } from "./types"
 
-const BASE = import.meta.env.DEV ? "/api" : "/api"
+const BASE = import.meta.env.DEV ? "/api" : "https://it-house-academt-edu-tizim-production.up.railway.app/api"
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem("student_token")

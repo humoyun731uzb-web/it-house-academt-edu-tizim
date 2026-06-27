@@ -35,7 +35,14 @@ ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [
     'https://it-house-academt-edu-tizim-production.up.railway.app',
     'https://*.railway.app',
+    'https://educrm1.netlify.app',
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    'https://educrm1.netlify.app',
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 
 # Application definition
@@ -49,12 +56,14 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'fontawesomefree',
     'frontend',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
