@@ -9,6 +9,7 @@ export default function LoginPhone() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [focused, setFocused] = useState(false)
+  const [showTelegram, setShowTelegram] = useState(false)
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/\D/g, "")
@@ -33,9 +34,11 @@ export default function LoginPhone() {
     try {
       const full = "+998" + raw
       const res = await api.sendCode(full)
-      navigate("/verify-code", {
-        state: { phone: full, code: res.code, telegram_connected: res.telegram_connected },
-      })
+      if (!res.telegram_connected) {
+        setShowTelegram(true)
+        return
+      }
+      navigate("/verify-code", { state: { phone: full } })
     } catch (err: any) {
       setError(err.message || "Xatolik yuz berdi")
     } finally {
@@ -148,6 +151,42 @@ export default function LoginPhone() {
             "Davom etish"
           )}
         </button>
+
+        {/* Telegram prompt */}
+        {showTelegram && (
+          <div className="mt-5 p-4 rounded-2xl bg-[#F0F0FF] border border-[#2001FF]/10">
+            <div className="flex items-start gap-3">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#2001FF" className="mt-0.5 shrink-0">
+                <path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+              </svg>
+              <div>
+                <p className="text-[#111827] text-sm font-semibold mb-1">Telegram'ga ulaning</p>
+                <p className="text-gray-500 text-xs leading-relaxed mb-3">
+                  Kodni Telegram'ingizda olish uchun <span className="font-semibold text-[#2001FF]">@ithousekuy_bot</span> ga o'ting va telefon raqamingizni yuboring.
+                </p>
+                <div className="flex gap-2">
+                  <a
+                    href="https://t.me/ithousekuy_bot"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2001FF] text-white text-xs font-semibold hover:opacity-90 transition-opacity"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                      <path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                    </svg>
+                    Botga o'tish
+                  </a>
+                  <button
+                    onClick={() => navigate("/password-login")}
+                    className="px-4 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors"
+                  >
+                    Parol orqali kirish
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Links */}
         <div className="flex flex-col items-center gap-4 mt-6">

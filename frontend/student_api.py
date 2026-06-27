@@ -172,7 +172,6 @@ def send_code(request):
     data = {
         "success": True,
         "message": "Tasdiqlash kodi yuborildi",
-        "code": code,
         "telegram_connected": bool(student.telegram_chat_id),
     }
     return JsonResponse(data)
