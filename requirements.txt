@@ -6,3 +6,4 @@ requests
 fontawesomefree
 gunicorn
 whitenoise
+Pillow
