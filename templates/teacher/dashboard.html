@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O'qituvchi paneli | IT House Academy</title>
+    <link rel="stylesheet" href="{% static 'fontawesomefree/css/all.min.css' %}">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .mobile-view { display: none; }
+        .desktop-view { display: block; }
+
+        /* =========================================================
+           MOBILE VIEW ( < 768px )  —  old mobile‑first design
+           ========================================================= */
+        @media (max-width: 767px) {
+            .mobile-view { display: block; }
+            .desktop-view { display: none; }
+            body { background: #f5f7fc;  justify-content: center; align-items: flex-start; min-height: 100vh; padding: 0; }
+            .t-app { max-width: 480px; width: 100%; min-height: 100vh; background: #ffffff; position: relative; box-shadow: 0 0 30px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+            .t-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #2001ff; color: #fff; position: sticky; top: 0; z-index: 20; }
+            .t-h-left { display: flex; align-items: center; gap: 14px; }
+            .t-h-btn { background: transparent; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 4px 6px; }
+            .t-h-title { font-size: 18px; font-weight: 600; }
+            .t-h-right { display: flex; align-items: center; gap: 12px; }
+            .t-h-avatar { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.25); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: #fff; border: 2px solid rgba(255,255,255,0.4); }
+            .t-content { flex: 1; padding: 20px 20px 100px; overflow-y: auto; }
+            .t-msgs { margin-bottom: 16px; }
+            .t-msg { padding: 12px 16px; border-radius: 12px; font-size: 14px; margin-bottom: 6px; background: #f0f4ff; color: #2001ff; border-left: 4px solid #2001ff; }
+            .t-msg.ok { background: #e8f5e9; color: #1e7e34; border-left-color: #1e7e34; }
+            .t-msg.err { background: #ffebee; color: #b71c1c; border-left-color: #b71c1c; }
+            .t-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+            .t-section h2 { font-size: 18px; font-weight: 700; color: #1a1a2e; }
+            .t-section span { font-size: 13px; color: #2001ff; background: #eef1ff; padding: 4px 14px; border-radius: 20px; font-weight: 600; }
+            .t-groups { display: flex; flex-direction: column; gap: 12px; }
+            .t-groups > div { background: #f4f4f4; border-radius: 14px; border: 1px solid #eee; overflow: hidden; }
+            .t-group { display: block; padding: 14px 16px 12px; text-decoration: none; color: inherit; background: #fff; }
+            .t-group.done { border-left-color: #2001ff; }
+            .t-group.cancelled { border-left-color: #ff6b6b; }
+            .t-g-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+            .t-g-name { font-weight: 700; font-size: 16px; color: #1a1a2e; }
+            .t-g-body { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+            .t-g-row { font-size: 13px; color: #555; display: flex; align-items: center; gap: 5px; }
+            .t-g-row i { color: #2001ff; width: 16px; text-align: center; font-size: 12px; }
+            .t-g-row .v { color: #1a1a2e; font-weight: 500; }
+            .t-g-count { padding: 6px 16px 2px; font-size: 12px; color: #666; }
+            .t-g-count i { color: #2001ff; margin-right: 4px; }
+            .t-empty { text-align: center; padding: 60px 20px 40px; }
+            .t-empty-icon { font-size: 56px; color: #2001ff; opacity: 0.35; margin-bottom: 16px; }
+            .t-empty h3 { font-size: 17px; color: #1a1a2e; margin-bottom: 6px; }
+            .t-empty p { font-size: 14px; color: #888; }
+            .t-fab { position: fixed; bottom: 30px; right: 50%; transform: translateX(50%); width: 56px; height: 56px; border-radius: 50%; background: #2001ff; color: #fff; border: none; font-size: 26px; box-shadow: 0 6px 24px rgba(32,1,255,0.4); cursor: pointer; z-index: 30; display: flex; align-items: center; justify-content: center; }
+            .t-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 40; opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; }
+            .t-overlay.open { opacity: 1; visibility: visible; }
+            .t-picker { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.9); width: 92%; max-width: 440px; background: #fff; border-radius: 24px; z-index: 50; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s; box-shadow: 0 20px 60px rgba(0,0,0,0.2); padding-bottom: 20px; opacity: 0; }
+            .t-picker.open { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+            .t-picker-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px 8px; border-bottom: 1px solid #eee; }
+            .t-picker-cancel { background: none; border: none; font-size: 15px; color: #888; cursor: pointer; font-weight: 500; }
+            .t-picker-title { font-weight: 600; font-size: 16px; color: #1a1a2e; }
+            .t-picker-done { background: #2001ff; border: none; color: #fff; font-size: 15px; font-weight: 600; padding: 6px 18px; border-radius: 20px; cursor: pointer; }
+            .t-picker-tabs { display: flex; gap: 6px; padding: 12px 20px 4px; }
+            .t-picker-tab { flex: 1; padding: 8px; border: 1px solid #e0e0e0; border-radius: 10px; background: #f9f9fb; font-size: 13px; font-weight: 600; color: #888; cursor: pointer; font-family: inherit; }
+            .t-picker-tab.active { background: #2001ff; color: #fff; border-color: #2001ff; }
+            .t-picker-body { display: flex; height: 220px; overflow: hidden; position: relative; padding: 0 8px; }
+            .t-picker-cols { display: flex; width: 100%; gap: 4px; }
+            .t-picker-col { flex: 1; min-width: 0; overflow-y: auto; scroll-snap-type: y mandatory; padding: 80px 0; scrollbar-width: none; }
+            #colsDate .t-picker-col:first-child { max-width: 70px; }
+            #colsDay .t-picker-col { max-width: 180px; margin: 0 auto; }
+            .t-picker-col::-webkit-scrollbar { display: none; }
+            .t-picker-item { height: 38px; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #888; scroll-snap-align: center; cursor: default; }
+            .t-picker-item.selected { color: #1a1a2e; font-weight: 600; font-size: 19px; }
+            .t-picker-highlight { position: absolute; left: 8%; right: 8%; top: 50%; transform: translateY(-50%); height: 38px; background: #f0f4ff; border-radius: 12px; pointer-events: none; opacity: 0.5; border: 1px solid #e0e8ff; }
+            .t-picker-all { display: flex; align-items: center; gap: 8px; padding: 12px 20px 0; font-size: 14px; color: #555; cursor: pointer; }
+            .t-picker-all input { width: 18px; height: 18px; accent-color: #2001ff; }
+        }
+
+        /* =========================================================
+           DESKTOP VIEW ( >= 768px )
+           ========================================================= */
+        @media (min-width: 768px) {
+            :root { --brand: #2001ff; --brand-hover: #1a00d9; --brand-light: #eef0ff; --brand-bg: #f5f6ff; --brand-gradient: linear-gradient(135deg, #2001ff, #5845ff); --text: #1a1a2e; --text-secondary: #6b7280; --border: #e5e7eb; --bg: #f8fafc; --sidebar-bg: #ffffff; --card-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); --card-shadow-hover: 0 10px 25px rgba(0,0,0,0.08); --radius: 12px; --radius-sm: 8px; }
+            body { background: var(--bg); color: var(--text); min-height: 100vh; }
+            .app { display: flex; min-height: 100vh; }
+            .sidebar { width: 260px; background: var(--sidebar-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; }
+            .sidebar-logo { padding: 24px 20px 20px; border-bottom: 1px solid var(--border); }
+            .sidebar-logo h1 { font-size: 18px; color: var(--text); display: flex; align-items: center; gap: 10px; font-weight: 700; }
+            .sidebar-logo h1 i { color: var(--brand); font-size: 24px; width: 32px; height: 32px; background: var(--brand-light); display: flex; align-items: center; justify-content: center; border-radius: 8px; }
+            .sidebar-logo span { font-size: 11px; color: var(--text-secondary); display: block; margin-top: 2px; padding-left: 42px; }
+            .sidebar-nav { flex: 1; padding: 12px 12px; overflow-y: auto; }
+            .sidebar-nav a { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-radius: var(--radius-sm); color: var(--text-secondary); text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s; margin-bottom: 2px; }
+            .sidebar-nav a i { width: 20px; text-align: center; font-size: 16px; }
+            .sidebar-nav a:hover { background: #f3f4f6; color: var(--text); }
+            .sidebar-nav a.active { background: var(--brand); color: #fff; font-weight: 600; box-shadow: 0 4px 12px rgba(32,1,255,0.25); }
+            .sidebar-nav a .badge { margin-left: auto; background: #fee2e2; color: #dc2626; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+            .sidebar-nav a.active .badge { background: rgba(255,255,255,0.25); color: #fff; }
+            .sidebar-footer { padding: 16px 12px; border-top: 1px solid var(--border); }
+            .sidebar-footer a { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: var(--radius-sm); color: var(--text-secondary); text-decoration: none; font-size: 14px; transition: all 0.2s; }
+            .sidebar-footer a:hover { background: #f3f4f6; color: #dc2626; }
+            .main { flex: 1; margin-left: 260px; display: flex; flex-direction: column; min-height: 100vh; }
+            .topbar { background: #fff; border-bottom: 1px solid var(--border); padding: 0 32px; height: 68px; display: flex; align-items: center; gap: 20px; position: sticky; top: 0; z-index: 50; }
+            .topbar-search { position: relative; flex: 1; max-width: 400px; }
+            .topbar-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 15px; }
+            .topbar-search input { width: 100%; padding: 10px 14px 10px 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; background: var(--bg); outline: none; }
+            .topbar-search input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(32,1,255,0.1); }
+            .topbar-actions { display: flex; align-items: center; gap: 16px; margin-left: auto; }
+            .topbar-notif { position: relative; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--bg); cursor: pointer; }
+            .topbar-notif i { font-size: 18px; color: var(--text-secondary); }
+            .topbar-notif .badge { position: absolute; top: 6px; right: 8px; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; border: 2px solid #fff; }
+            .topbar-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 4px 8px 4px 4px; border-radius: var(--radius-sm); }
+            .topbar-profile:hover { background: var(--bg); }
+            .topbar-profile .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--brand-light); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
+            .topbar-profile .info { line-height: 1.3; }
+            .topbar-profile .name { font-size: 14px; font-weight: 600; color: var(--text); }
+            .topbar-profile .role { font-size: 12px; color: var(--text-secondary); }
+            .content { padding: 28px 32px; flex: 1; }
+            .welcome h1 { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+            .welcome p { color: var(--text-secondary); font-size: 15px; }
+            .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 24px 0 28px; }
+            .stat-card { background: #fff; border-radius: var(--radius); padding: 20px; box-shadow: var(--card-shadow); transition: box-shadow 0.2s, transform 0.2s; }
+            .stat-card:hover { box-shadow: var(--card-shadow-hover); transform: translateY(-2px); }
+            .stat-card .icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 14px; }
+            .stat-card .icon.green { background: var(--brand-light); color: var(--brand); }
+            .stat-card .icon.blue { background: #eff6ff; color: #2563eb; }
+            .stat-card .icon.orange { background: #fff7ed; color: #ea580c; }
+            .stat-card .icon.purple { background: #f5f3ff; color: #7c3aed; }
+            .stat-card .value { font-size: 28px; font-weight: 700; line-height: 1.2; }
+            .stat-card .label { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+            .content-row { display: flex; gap: 28px; }
+            .content-main { flex: 1; min-width: 0; }
+            .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+            .section-header h2 { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+            .date-filter { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+            .date-filter .pill { padding: 7px 16px; border-radius: 20px; border: 1px solid var(--border); background: #fff; font-size: 13px; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+            .date-filter .pill:hover { border-color: var(--brand); color: var(--brand); }
+            .date-filter .pill.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+            .date-filter .pill i { font-size: 12px; }
+            .table-wrap { background: #fff; border-radius: var(--radius); box-shadow: var(--card-shadow); overflow: hidden; }
+            .table-wrap table { width: 100%; border-collapse: collapse; }
+            .table-wrap th { text-align: left; padding: 14px 18px; font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; background: #f9fafb; border-bottom: 1px solid var(--border); }
+            .table-wrap td { padding: 14px 18px; font-size: 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+            .table-wrap tr:last-child td { border-bottom: none; }
+            .table-wrap tr:hover td { background: #f9fafb; }
+            .group-cell { display: flex; align-items: center; gap: 12px; }
+            .group-cell .g-avatar { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0; }
+            .group-cell .g-info { line-height: 1.3; }
+            .group-cell .g-name { font-weight: 600; font-size: 14px; }
+            .group-cell .g-subject { font-size: 12px; color: var(--text-secondary); }
+            .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+            .status-badge.active { background: var(--brand-light); color: var(--brand); }
+            .status-badge.upcoming { background: #fff7ed; color: #ea580c; }
+            .status-badge.finished { background: #f3f4f6; color: var(--text-secondary); }
+            .status-badge.expired { background: #fef2f2; color: #dc2626; }
+            .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; border: none; text-decoration: none; }
+            .btn-green { background: var(--brand); color: #fff; }
+            .btn-green:hover { background: var(--brand-hover); box-shadow: 0 4px 12px rgba(32,1,255,0.3); }
+            .btn-sm { padding: 6px 12px; font-size: 12px; }
+            .right-sidebar { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 20px; }
+            .widget { background: #fff; border-radius: var(--radius); box-shadow: var(--card-shadow); overflow: hidden; }
+            .widget-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+            .widget-header h3 { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+            .widget-header .see-all { font-size: 12px; color: var(--brand); text-decoration: none; font-weight: 500; }
+            .widget-body { padding: 12px 16px; }
+            .lesson-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+            .lesson-item:last-child { border-bottom: none; }
+            .lesson-item .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+            .lesson-item .dot.green { background: var(--brand); }
+            .lesson-item .dot.orange { background: #fb923c; }
+            .lesson-item .dot.blue { background: #60a5fa; }
+            .lesson-item .info { flex: 1; min-width: 0; }
+            .lesson-item .name { font-size: 13px; font-weight: 600; }
+            .lesson-item .meta { font-size: 12px; color: var(--text-secondary); }
+            .lesson-item .time { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+            .cal { padding: 16px 20px; }
+            .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+            .cal-header .month { font-size: 15px; font-weight: 600; }
+            .cal-header .nav button { width: 28px; height: 28px; border: none; background: transparent; border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 14px; }
+            .cal-header .nav button:hover { background: var(--bg); }
+            .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+            .cal-grid .day-name { text-align: center; font-size: 11px; color: var(--text-secondary); font-weight: 600; padding: 6px 0; text-transform: uppercase; }
+            .cal-grid .day { text-align: center; padding: 6px 0; font-size: 13px; border-radius: 8px; cursor: pointer; }
+            .cal-grid .day:hover { background: var(--bg); }
+            .cal-grid .day.today { background: var(--brand); color: #fff; font-weight: 600; box-shadow: 0 2px 8px rgba(32,1,255,0.3); }
+            .cal-grid .day.other { color: #d1d5db; }
+            .cal-grid .day.today.has-lesson::after { background: rgba(255,255,255,0.7); }
+            .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px; }
+            .qa-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 8px; border-radius: var(--radius-sm); background: var(--bg); text-decoration: none; color: var(--text); }
+            .qa-btn:hover { background: var(--brand-light); color: var(--brand); }
+            .qa-btn i { font-size: 20px; }
+            .qa-btn span { font-size: 12px; font-weight: 500; text-align: center; }
+            .notif-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
+            .notif-item:last-child { border-bottom: none; }
+            .notif-item .n-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+            .notif-item .n-icon.green { background: var(--brand-light); color: var(--brand); }
+            .notif-item .n-icon.blue { background: #eff6ff; color: #2563eb; }
+            .notif-item .n-icon.orange { background: #fff7ed; color: #ea580c; }
+            .notif-item .n-text { flex: 1; }
+            .notif-item .n-title { font-size: 13px; font-weight: 600; }
+            .notif-item .n-meta { font-size: 12px; color: var(--text-secondary); }
+
+            /* desktop picker overlay (for date filter modal) */
+            .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 200; justify-content: center; align-items: center; }
+            .overlay.show { display: flex; }
+            .picker-modal { background: #fff; border-radius: 16px; width: 90%; max-width: 380px; padding: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); animation: scaleIn 0.25s ease; }
+            @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+            .picker-tabs { display: flex; gap: 8px; margin-bottom: 16px; background: var(--bg); border-radius: 10px; padding: 4px; }
+            .picker-tab { flex: 1; padding: 10px; text-align: center; font-size: 14px; font-weight: 500; border-radius: 8px; cursor: pointer; color: var(--text-secondary); border: none; background: transparent; }
+            .picker-tab.active { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); font-weight: 600; }
+            .picker-cols { display: flex; gap: 8px; justify-content: center; height: 200px; overflow: hidden; position: relative; }
+            .picker-col { flex: 1; overflow-y: auto; scroll-snap-type: y mandatory; scrollbar-width: none; max-height: 200px; }
+            .picker-col::-webkit-scrollbar { display: none; }
+            .picker-col:first-child { max-width: 70px; }
+            .picker-item { height: 38px; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #888; scroll-snap-align: center; }
+            .picker-item.selected { color: var(--text); font-size: 19px; font-weight: 600; }
+            .picker-indicator { position: absolute; top: 50%; left: 0; right: 0; height: 38px; transform: translateY(-50%); border-top: 1.5px solid var(--border); border-bottom: 1.5px solid var(--border); pointer-events: none; }
+            .picker-actions { display: flex; gap: 10px; margin-top: 16px; }
+            .picker-actions button { flex: 1; padding: 12px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; border: none; }
+            .picker-actions .btn-cancel { background: var(--bg); color: var(--text-secondary); }
+            .picker-actions .btn-done { background: var(--brand); color: #fff; }
+            .picker-check { display: flex; align-items: center; gap: 10px; padding: 10px 4px; font-size: 14px; color: var(--text-secondary); cursor: pointer; }
+            .picker-check input { width: 18px; height: 18px; accent-color: var(--brand); }
+        }
+
+        /* shared hidden / visible helpers */
+        .desktop-only { display: none; }
+        @media (min-width: 768px) { .desktop-only { display: block; } }
+        .mobile-only { display: block; }
+        @media (min-width: 768px) { .mobile-only { display: none; } }
+
+        @media (max-width: 480px) {
+            .t-app { max-width: 100%; }
+            .t-header { padding: 14px 16px; }
+            .t-content { padding: 16px 16px 100px; }
+            .t-g-name { font-size: 15px; }
+            .t-section h2 { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ============================================================
+     MOBILE VIEW
+     ============================================================ -->
+<div class="mobile-view">
+    <div class="t-app">
+        <header class="t-header">
+            <div class="t-h-left">
+                <button class="t-h-btn" id="menuBtnMob"><i class="fas fa-bars"></i></button>
+                <span class="t-h-title">O'qituvchi paneli</span>
+            </div>
+            <div class="t-h-right">
+                <button class="t-h-btn" id="calendarBtnMob"><i class="far fa-calendar-alt"></i></button>
+                <button class="t-h-btn"><i class="far fa-bell"></i></button>
+                <button class="t-h-btn"><i class="fas fa-sliders-h"></i></button>
+                <div class="t-h-avatar">{{ employee.first_name|first|upper }}{{ employee.last_name|first|upper }}</div>
+            </div>
+        </header>
+
+        <div class="t-content">
+            {% if messages %}
+            <div class="t-msgs">
+                {% for message in messages %}
+                <div class="t-msg {% if message.tags == 'success' %}ok{% elif message.tags == 'error' %}err{% endif %}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="t-section">
+                <h2>{% if selected_date_display %}{{ selected_date_display }}{% elif selected_day == 'dushanba' %}Dushanba{% elif selected_day == 'seshanba' %}Seshanba{% elif selected_day == 'chorshanba' %}Chorshanba{% elif selected_day == 'payshanba' %}Payshanba{% elif selected_day == 'juma' %}Juma{% elif selected_day == 'shanba' %}Shanba{% elif selected_day == 'yakshanba' %}Yakshanba{% else %}Barcha guruhlar{% endif %}</h2>
+                <span>{{ groups|length }} ta</span>
+            </div>
+
+            {% if groups %}
+            <div class="t-groups">
+                {% for item in groups %}
+                <div>
+                    {% if item.status == "expired" %}
+                    <div class="t-group cancelled" style="opacity:0.6;cursor:default;">
+                        <div class="t-g-top">
+                            <div class="t-g-name">{{ item.group.name }}</div>
+                        </div>
+                        <div class="t-g-body">
+                            <div class="t-g-row"><span class="v">{{ item.group.course.name }}</span></div>
+                            <div class="t-g-row"><i class="far fa-clock"></i> <span class="v">{{ item.lesson_display }}</span></div>
+                        </div>
+                    </div>
+                    <div class="t-g-count"><i class="fas fa-ban" style="color:#dc2626;"></i> Muddati tugagan · <strong>{{ item.student_count }}</strong> ta o'quvchi</div>
+                    {% else %}
+                    <a href="{% url 'teacher_group_detail' item.group.pk %}" class="t-group {{ item.status }}">
+                        <div class="t-g-top">
+                            <div class="t-g-name">{{ item.group.name }}</div>
+                        </div>
+                        <div class="t-g-body">
+                            <div class="t-g-row"><span class="v">{{ item.group.course.name }}</span></div>
+                            <div class="t-g-row"><i class="far fa-clock"></i> <span class="v">{{ item.lesson_display }}</span></div>
+                        </div>
+                    </a>
+
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="t-empty">
+                <div class="t-empty-icon"><i class="fas fa-calendar-times"></i></div>
+                <h3>Guruhlar topilmadi</h3>
+                <p>{% if selected_day or selected_date %}Bu kun uchun darslar mavjud emas{% else %}Sizga biriktirilgan guruhlar mavjud emas{% endif %}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <button class="t-fab" id="fabBtnMob"><i class="fas fa-plus"></i></button>
+
+        <div class="t-overlay" id="overlayMob"></div>
+
+        <div class="t-picker" id="pickerMob">
+            <div class="t-picker-head">
+                <button class="t-picker-cancel" id="cancelBtnMob">Bekor qilish</button>
+                <span class="t-picker-title">Sanani tanlang</span>
+                <button class="t-picker-done" id="doneBtnMob">Tanlash</button>
+            </div>
+            <div class="t-picker-tabs">
+                <button class="t-picker-tab active" data-mode="date">Kun bo'yicha</button>
+                <button class="t-picker-tab" data-mode="day">Hafta kuni</button>
+            </div>
+            <div class="t-picker-body">
+                <div class="t-picker-highlight"></div>
+                <div class="t-picker-cols" id="colsDateMob">
+                    <div class="t-picker-col" id="colDayNumMob"></div>
+                    <div class="t-picker-col" id="colMonthMob"></div>
+                    <div class="t-picker-col" id="colYearMob"></div>
+                </div>
+                <div class="t-picker-cols" id="colsDayMob" style="display:none">
+                    <div class="t-picker-col" id="colDayNameMob"></div>
+                </div>
+            </div>
+            <label class="t-picker-all">
+                <input type="checkbox" id="showAllMob"> Barcha guruhlarni ko'rish
+            </label>
+        </div>
+    </div>
+
+    <script>
+    (function(){
+        var now = new Date();
+        var selDay = (now.getDay() + 6) % 7;
+        var selMonth = now.getMonth();
+        var selYear = now.getFullYear();
+        var selDayNum = now.getDate();
+
+        var months = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+        var dayNamesUz = ['Dushanba','Seshanba','Chorshanba','Payshanba','Juma','Shanba','Yakshanba'];
+        var dayNamesUrl = ['dushanba','seshanba','chorshanba','payshanba','juma','shanba','yakshanba'];
+        var activeMode = 'date';
+
+        function buildCol(el, items, selIdx) {
+            if (!el) return;
+            el.innerHTML = '';
+            items.forEach(function(v,i){
+                var d = document.createElement('div');
+                d.className = 't-picker-item' + (i===selIdx?' selected':'');
+                d.textContent = v;
+                d.dataset.index = i;
+                el.appendChild(d);
+            });
+            if (selIdx >= 0) el.scrollTop = selIdx * 38 + 80 - el.clientHeight/2 + 18;
+        }
+
+        var dayNums = []; for(var i=1;i<=31;i++) dayNums.push(i<10?'0'+i:''+i);
+        var years = []; for(var i=2020;i<=2035;i++) years.push(''+i);
+
+        buildCol(document.getElementById('colDayNameMob'), dayNamesUz, selDay);
+        buildCol(document.getElementById('colDayNumMob'), dayNums, selDayNum-1);
+        buildCol(document.getElementById('colMonthMob'), months, selMonth);
+        buildCol(document.getElementById('colYearMob'), years, selYear-2020);
+
+        function setupCol(id, cb){
+            var el = document.getElementById(id);
+            if(!el) return;
+            var ticking = false;
+            el.addEventListener('scroll', function(){
+                if(!ticking){
+                    requestAnimationFrame(function(){
+                        var items = el.querySelectorAll('.t-picker-item');
+                        var center = el.scrollTop + el.clientHeight/2;
+                        var closest = 0, minDist = Infinity;
+                        var elRect = el.getBoundingClientRect();
+                        var elCenter = elRect.top + elRect.height/2;
+                        items.forEach(function(item,i){
+                            var rect = item.getBoundingClientRect();
+                            var dist = Math.abs(rect.top + rect.height/2 - elCenter);
+                            if(dist < minDist){ minDist = dist; closest = i; }
+                        });
+                        items.forEach(function(it){it.classList.remove('selected');});
+                        if(items[closest]){ items[closest].classList.add('selected'); cb(closest); }
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            });
+        }
+
+        setupCol('colDayNameMob', function(i){selDay=i;});
+        setupCol('colDayNumMob', function(i){selDayNum=i+1;});
+        setupCol('colMonthMob', function(i){selMonth=i;});
+        setupCol('colYearMob', function(i){selYear=i+2020;});
+
+        document.querySelectorAll('#pickerMob .t-picker-tab').forEach(function(tab){
+            tab.addEventListener('click', function(){
+                document.querySelectorAll('#pickerMob .t-picker-tab').forEach(function(t){t.classList.remove('active');});
+                tab.classList.add('active');
+                activeMode = tab.dataset.mode;
+                document.getElementById('colsDateMob').style.display = activeMode==='date'?'flex':'none';
+                document.getElementById('colsDayMob').style.display = activeMode==='day'?'flex':'none';
+            });
+        });
+
+        function openPickerMob(){
+            document.getElementById('overlayMob').classList.add('open');
+            document.getElementById('pickerMob').classList.add('open');
+        }
+        function closePickerMob(){
+            document.getElementById('overlayMob').classList.remove('open');
+            document.getElementById('pickerMob').classList.remove('open');
+        }
+        document.getElementById('calendarBtnMob').addEventListener('click', openPickerMob);
+        document.getElementById('cancelBtnMob').addEventListener('click', closePickerMob);
+        document.getElementById('overlayMob').addEventListener('click', closePickerMob);
+        document.getElementById('doneBtnMob').addEventListener('click', function(){
+            if(document.getElementById('showAllMob').checked){
+                window.location.href = '{% url "teacher_dashboard" %}';
+                return;
+            }
+            if(activeMode==='day'){
+                window.location.href = '?day=' + dayNamesUrl[selDay];
+            } else {
+                var ds = selYear + '-' + (selMonth+1<10?'0':'')+(selMonth+1) + '-' + (selDayNum<10?'0':'')+selDayNum;
+                window.location.href = '?date=' + ds;
+            }
+        });
+        document.getElementById('fabBtnMob').addEventListener('click', function(){ alert('Yangi guruh qo\'shish'); });
+        document.querySelectorAll('.t-msg').forEach(function(el){ setTimeout(function(){el.remove();},4000); });
+    })();
+    </script>
+</div>
+
+<!-- ============================================================
+     DESKTOP VIEW ( >= 768px )
+     ============================================================ -->
+<div class="desktop-view" id="desktopApp">
+    <div class="app">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h1><i class="fas fa-graduation-cap"></i> IT House Academy</h1>
+                <span>O'qituvchi paneli</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="{% url 'teacher_dashboard' %}" class="active"><i class="fas fa-th-large"></i> Dashboard</a>
+                <a href="{% url 'teacher_my_groups' %}"><i class="fas fa-users"></i> Mening guruhlarim</a>
+                <a href="#"><i class="fas fa-calendar-check"></i> Davomat</a>
+                <a href="#"><i class="fas fa-clock"></i> Dars jadvali</a>
+                <a href="#"><i class="fas fa-tasks"></i> Topshiriqlar</a>
+                <a href="#"><i class="fas fa-folder-open"></i> Materiallar</a>
+                <a href="#"><i class="fas fa-bell"></i> Bildirishnomalar <span class="badge">3</span></a>
+                <a href="#"><i class="fas fa-user-circle"></i> Profil</a>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Chiqish</a>
+            </div>
+        </aside>
+
+        <div class="main">
+            <header class="topbar">
+                <div class="topbar-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Guruh yoki o'quvchi qidirish...">
+                </div>
+                <div class="topbar-actions">
+                    <div class="topbar-notif"><i class="far fa-bell"></i><span class="badge"></span></div>
+                    <div class="topbar-profile">
+                        <div class="avatar">{{ employee.first_name|first }}{{ employee.last_name|first }}</div>
+                        <div class="info">
+                            <div class="name">{{ employee.first_name }} {{ employee.last_name }}</div>
+                            <div class="role">{{ employee.role.name|default:"O'qituvchi" }}</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content">
+                <div class="welcome">
+               
+                    <p>{{ today_display }} &middot; O'qituvchi paneli</p>
+                </div>
+
+                <div class="stats">
+                    <div class="stat-card"><div class="icon green"><i class="fas fa-users"></i></div><div class="value">{{ total_groups }}</div><div class="label">Mening guruhlarim</div></div>
+                    <div class="stat-card"><div class="icon blue"><i class="fas fa-chalkboard-teacher"></i></div><div class="value">{{ today_count }}</div><div class="label">Bugungi darslar</div></div>
+                    <div class="stat-card"><div class="icon orange"><i class="fas fa-user-graduate"></i></div><div class="value">{{ total_students }}</div><div class="label">Jami o'quvchilar</div></div>
+                    <div class="stat-card"><div class="icon purple"><i class="fas fa-chart-line"></i></div><div class="value">92%</div><div class="label">Davomat ko'rsatkichi</div></div>
+                </div>
+
+                <div class="content-row">
+                    <div class="content-main">
+                        <div class="section-header" id="groupsSection">
+                            <h2><i class="fas fa-users" style="color:var(--brand);"></i> Guruhlarim</h2>
+                            <div class="date-filter">
+                                <button class="pill" onclick="openDesktopPicker()"><i class="far fa-calendar-alt"></i> {% if selected_date_display %}{{ selected_date_display }}{% else %}Bugun{% endif %}</button>
+                                <a href="{% url 'teacher_dashboard' %}" class="pill {% if not selected_day and not selected_date %}active{% endif %}"><i class="fas fa-times"></i> Filterni tozalash</a>
+                            </div>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead><tr><th>Guruh nomi</th><th>O'quvchilar</th><th>Dars vaqti</th><th>Holati</th><th style="text-align:right;">Amallar</th></tr></thead>
+                                <tbody>
+                                {% for g in groups %}
+                                <tr>
+                                    <td><div class="group-cell"><div class="g-avatar" style="background:{% cycle '#2001ff' '#2563eb' '#ea580c' '#7c3aed' '#0891b2' %};">{{ g.group.name|slice:":2" }}</div><div class="g-info"><div class="g-name">{{ g.group.name }}</div><div class="g-subject">{{ g.group.course.name }}</div></div></div></td>
+                                    <td><strong>{{ g.student_count }}</strong> ta</td>
+                                    <td style="font-size:13px;color:var(--text-secondary);">{{ g.lesson_display|default:"Vaqt belgilanmagan" }}</td>
+                                    <td>{% if g.status == "active" %}<span class="status-badge active"><i class="fas fa-circle" style="font-size:8px;"></i> Dars bo'lyapti</span>{% elif g.status == "upcoming" %}<span class="status-badge upcoming"><i class="fas fa-clock"></i> Kutilyapti</span>{% elif g.status == "finished" %}<span class="status-badge finished"><i class="fas fa-check"></i> O'tib ketdi</span>{% elif g.status == "expired" %}<span class="status-badge expired"><i class="fas fa-ban"></i> Muddati tugagan</span>{% else %}<span class="status-badge finished"><i class="fas fa-hourglass"></i> Kutilmoqda</span>{% endif %}</td>
+                                    <td style="text-align:right;">{% if g.status == "expired" %}<span style="font-size:12px;color:#dc2626;font-weight:500;"><i class="fas fa-lock"></i> Bloklangan</span>{% else %}<a href="{% url 'teacher_group_detail' g.group.pk %}" class="btn btn-green btn-sm"><i class="fas fa-arrow-right"></i> Batafsil</a>{% endif %}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);"><i class="fas fa-folder-open" style="font-size:32px;display:block;margin-bottom:8px;opacity:0.4;"></i> Guruhlar topilmadi</td></tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <aside class="right-sidebar">
+                        <div class="widget">
+                            <div class="widget-header"><h3><i class="far fa-clock" style="color:var(--brand);"></i> Bugungi darslar</h3><a href="#" class="see-all">Barchasi</a></div>
+                            <div class="widget-body">
+                                {% for g in groups %}{% if g.status == "active" or g.status == "upcoming" %}<div class="lesson-item"><span class="dot {% if g.status == 'active' %}green{% elif g.status == 'upcoming' %}orange{% else %}blue{% endif %}"></span><div class="info"><div class="name">{{ g.group.name }}</div><div class="meta">{{ g.student_count }} ta o'quvchi &middot; {{ g.group.course.name }}</div></div><div class="time">{% if g.nearest_time %}{{ g.nearest_time|time:"H:i" }}{% else %}—{% endif %}</div></div>{% endif %}{% empty %}<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:13px;">Bugun dars yo'q</div>{% endfor %}
+                            </div>
+                        </div>
+                        <div class="widget"><div class="widget-header"><h3><i class="far fa-calendar-alt" style="color:var(--brand);"></i> Taqvim</h3></div><div class="cal" id="desktopCalendar"></div></div>
+                     
+                      
+                    </aside>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Desktop date picker overlay -->
+    <div class="overlay" id="desktopPickerOverlay">
+        <div class="picker-modal">
+            <div class="picker-tabs">
+                <button class="picker-tab active" data-tab="date">Kun bo'yicha</button>
+                <button class="picker-tab" data-tab="day">Hafta kuni</button>
+            </div>
+            <div class="picker-cols" id="desktopPickerBody">
+                <div class="picker-col" id="deskColDayNum"></div>
+                <div class="picker-col" id="deskColMonth"></div>
+                <div class="picker-col" id="deskColYear"></div>
+                <div class="picker-indicator"></div>
+            </div>
+            <label class="picker-check"><input type="checkbox" id="deskChkAll"> Barcha guruhlarni ko'rish</label>
+            <div class="picker-actions">
+                <button class="btn-cancel" onclick="closeDesktopPicker()">Bekor qilish</button>
+                <button class="btn-done" onclick="doneDesktopPicker()">Tanlash</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* desktop calendar widget */
+    (function(){
+        var now = new Date(), y = now.getFullYear(), m = now.getMonth();
+        var cal = document.getElementById('desktopCalendar');
+        if(!cal) return;
+        var days_uz = ['Du','Se','Ch','Pa','Ju','Sh','Ya'];
+        function renderCal(){
+            var first = new Date(y,m,1).getDay(), last = new Date(y,m+1,0).getDate(), prevLast = new Date(y,m,0).getDate();
+            var mn = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+            var h = '<div class="cal-header"><span class="month">'+mn[m]+' '+y+'</span><div class="nav"><button onclick="calNav(-1)"><i class=\'fas fa-chevron-left\'></i></button><button onclick="calNav(1)"><i class=\'fas fa-chevron-right\'></i></button></div></div><div class="cal-grid">';
+            for(var d of days_uz) h += '<div class="day-name">'+d+'</div>';
+            var start = first===0?6:first-1;
+            for(var i=0;i<start;i++) h += '<div class="day other">'+(prevLast-start+1+i)+'</div>';
+            for(var d=1;d<=last;d++){
+                var isT = d===now.getDate()&&m===now.getMonth()&&y===now.getFullYear();
+                h += '<div class="day'+(isT?' today':'')+'">'+d+'</div>';
+            }
+            var total=start+last,rem=(7-total%7)%7;
+            for(var i=1;i<=rem;i++) h += '<div class="day other">'+i+'</div>';
+            h += '</div>';
+            cal.innerHTML = h;
+        }
+        window.calNav = function(dir){ m+=dir; if(m<0){m=11;y--;} if(m>11){m=0;y++;} renderCal(); };
+        renderCal();
+    })();
+
+    /* desktop date picker */
+    (function(){
+        var now = new Date();
+        var deskSelDayNum = now.getDate();
+        var deskSelMonth = now.getMonth();
+        var deskSelYear = now.getFullYear();
+        var deskSelWeekday = (now.getDay()+6)%7;
+        var deskMode = 'date';
+        var monthsUz = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+        var daysUzArr = ['Dushanba','Seshanba','Chorshanba','Payshanba','Juma','Shanba','Yakshanba'];
+        var daysUrl = ['dushanba','seshanba','chorshanba','payshanba','juma','shanba','yakshanba'];
+
+        window.openDesktopPicker = function(){ document.getElementById('desktopPickerOverlay').classList.add('show'); buildDesktopPicker(); };
+        window.closeDesktopPicker = function(){ document.getElementById('desktopPickerOverlay').classList.remove('show'); };
+
+        function buildDesktopPicker(){
+            var body = document.getElementById('desktopPickerBody');
+            if(deskMode==='date'){
+                body.innerHTML = '<div class="picker-col" id="deskColDayNum"></div><div class="picker-col" id="deskColMonth"></div><div class="picker-col" id="deskColYear"></div><div class="picker-indicator"></div>';
+                fillDeskCol('deskColDayNum', Array.from({length:31},(_,i)=>i+1), deskSelDayNum);
+                fillDeskCol('deskColMonth', monthsUz.map((m,i)=>({v:i,label:m})), deskSelMonth);
+                fillDeskCol('deskColYear', Array.from({length:11},(_,i)=>2025+i), deskSelYear);
+            } else {
+                body.innerHTML = '<div class="picker-col" id="deskColDay" style="max-width:200px;margin:0 auto;"></div><div class="picker-indicator"></div>';
+                fillDeskCol('deskColDay', [{v:1,label:'Dushanba'},{v:2,label:'Seshanba'},{v:3,label:'Chorshanba'},{v:4,label:'Payshanba'},{v:5,label:'Juma'},{v:6,label:'Shanba'},{v:7,label:'Yakshanba'}], deskSelWeekday===0?7:deskSelWeekday);
+            }
+        }
+
+        function fillDeskCol(id, items, sel){
+            var col = document.getElementById(id); if(!col) return;
+            var html = '<div style="height:76px"></div>';
+            items.forEach(function(item){
+                var val = typeof item==='object'?item.v:item;
+                var label = typeof item==='object'?item.label:item;
+                html += '<div class="picker-item'+(val===sel?' selected':'')+'" data-value="'+val+'">'+label+'</div>';
+            });
+            html += '<div style="height:76px"></div>';
+            col.innerHTML = html;
+            var selEl = col.querySelector('.selected');
+            if(selEl) selEl.scrollIntoView({block:'center'});
+        }
+
+        document.querySelectorAll('#desktopPickerOverlay .picker-tab').forEach(function(tab){
+            tab.addEventListener('click', function(){
+                document.querySelectorAll('#desktopPickerOverlay .picker-tab').forEach(function(t){t.classList.remove('active');});
+                tab.classList.add('active'); deskMode = tab.dataset.tab; buildDesktopPicker();
+            });
+        });
+
+        window.doneDesktopPicker = function(){
+            if(document.getElementById('deskChkAll').checked){ window.location.href='{% url "teacher_dashboard" %}'; return; }
+            if(deskMode==='date'){
+                var col = document.getElementById('deskColDayNum');
+                var sel = col?col.querySelector('.selected'):null;
+                var d = sel?parseInt(sel.dataset.value):deskSelDayNum;
+                var colM = document.getElementById('deskColMonth');
+                var selM = colM?colM.querySelector('.selected'):null;
+                var mm = selM?parseInt(selM.dataset.value):deskSelMonth;
+                var colY = document.getElementById('deskColYear');
+                var selY = colY?colY.querySelector('.selected'):null;
+                var y = selY?parseInt(selY.dataset.value):deskSelYear;
+                window.location.href = '?date='+y+'-'+(mm+1<10?'0':'')+(mm+1)+'-'+(d<10?'0':'')+d;
+            } else {
+                var colD = document.getElementById('deskColDay');
+                var selD = colD?colD.querySelector('.selected'):null;
+                var v = selD?parseInt(selD.dataset.value):1;
+                window.location.href = '?day='+daysUrl[v-1];
+            }
+        };
+    })();
+    </script>
+</div>
+
+</body>
+</html>

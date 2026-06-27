@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} | Edu Tizim{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="card form-card">
+    <div class="card-header">
+        <h3><i class="fas {% if 'qo\'shish' in title %}fa-plus-circle{% else %}fa-edit{% endif %}"></i> {{ title }}</h3>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info" style="margin-bottom: 24px; display: flex; align-items: center; gap: 10px; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; border-radius: 10px; padding: 12px 16px;">
+            <i class="fas fa-info-circle"></i>
+            <span><strong> Guruhni bo'sh qoldirsangiz</strong>, o'quvchi avtomatik <strong>"Kutilyotganlar"</strong> bo'limiga tushadi va keyin istalgan guruhga qo'shishingiz mumkin.</span>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-row-grid">
+                {% for field in form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {% if field.name == 'groups' %}
+                    <input id="groupSearchInput" type="text" class="form-control" placeholder="Guruh nomi bilan qidirish..." oninput="filterGroups()" style="margin-bottom:6px;">
+                    <div id="groupSelectContainer" style="max-height:200px;overflow-y:auto;border:1px solid #d1d5db;border-radius:10px;padding:6px;">
+                        {% for g in group_data %}
+                        <label class="group-check-item" data-course="{{ g.course_id }}" style="display:block;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px;transition:background 0.1s;">
+                            <input type="checkbox" name="{{ field.html_name }}" value="{{ g.pk }}"
+                                {% if g.pk|stringformat:"s" in field.value or g.pk in field.value %}checked{% endif %}>
+                            {{ g.name }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    {{ field }}
+                    {% endif %}
+                    {% if field.errors %}
+                    <div class="field-error">{{ field.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="form-actions">
+                <a href="{% url 'student_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Bekor qilish</a>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Saqlash</button>
+            </div>
+        </form>
+    </div>
+</div>
+<style>
+.group-check-item:hover { background: #eff6ff; }
+.group-check-item:has(input:checked) { background: #1d4ed8 !important; color: white; font-weight: 600; }
+.group-check-item input { display: none; }
+</style>
+<script>
+var groupItems = [];
+document.querySelectorAll('.group-check-item').forEach(function(el) {
+    var inp = el.querySelector('input');
+    groupItems.push({ el: el, input: inp, label: el.textContent.trim().toLowerCase(), course: parseInt(el.dataset.course) || 0 });
+});
+document.addEventListener('change', function(e) {
+    if (e.target.id && e.target.id.startsWith('id_desired_course')) {
+        filterGroupsByCourse();
+    }
+});
+function filterGroupsByCourse() {
+    var courseId = document.getElementById('id_desired_course').value;
+    groupItems.forEach(function(g) {
+        var show = !courseId || g.course === parseInt(courseId);
+        g.el.style.display = show ? '' : 'none';
+    });
+}
+function filterGroups() {
+    var q = document.getElementById('groupSearchInput').value.trim().toLowerCase();
+    var courseId = document.getElementById('id_desired_course').value;
+    groupItems.forEach(function(g) {
+        var courseMatch = !courseId || g.course === parseInt(courseId);
+        var nameMatch = !q || g.label.indexOf(q) !== -1;
+        g.el.style.display = (courseMatch && nameMatch) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

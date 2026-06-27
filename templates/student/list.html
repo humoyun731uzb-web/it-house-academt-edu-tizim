@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}O'quvchilar | Edu Tizim{% endblock %}
+{% block extra_css %}
+<style>
+.filter-bar { display:flex;gap:12px;padding:16px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--border);background:#fafbfc; }
+.filter-bar .filter-group { display:flex;align-items:center;gap:6px; }
+.filter-bar input,.filter-bar select { padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;outline:none;background:#fff;font-family:inherit;transition:border-color .15s; }
+.filter-bar input:focus,.filter-bar select:focus { border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,0.08); }
+.filter-bar input { min-width:180px;flex:1; }
+.filter-bar .btn-clear { padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);background:#fff;cursor:pointer;font-size:13px;color:var(--text-light);transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:4px; }
+.filter-bar .btn-clear:hover { border-color:var(--danger);color:var(--danger); }
+@media(max-width:768px){ .filter-bar{flex-direction:column;align-items:stretch;} .filter-bar input{min-width:0;} }
+.desktop-only{display:table-cell;} @media(max-width:768px){.desktop-only{display:none!important;}}
+.hide-mobile{display:table-cell;} @media(max-width:768px){.hide-mobile{display:none!important;}}
+.hide-tablet{display:table-cell;} @media(max-width:768px){.hide-tablet{display:none!important;}}
+.table .col-groups { max-width:200px;white-space:normal;word-break:break-word; }
+.table .group-badge { display:inline-block;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:600;margin:1px 2px;background:#eef2ff;color:#2563eb; }
+.student-name-wrap { display:flex;flex-direction:column;gap:2px; }
+.student-name-wrap .name-main { font-weight:600;color:#0f172a; }
+.student-name-wrap .name-sub { font-size:11px;color:#64748b;font-weight:500; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>O'quvchilar</h2>
+        <span class="page-header-count">{{ students|length }} ta o'quvchi</span>
+    </div>
+    <div class="page-header-right">
+        <div class="btn-group" style="display:flex;gap:6px;">
+        <a href="{% url 'student_export_excel' %}" class="btn btn-success" style="background:#2001ff;border-color:#2001ff;color:#fff;" title="Excel yuklab olish"><i class="fas fa-file-excel"></i> Excel</a>
+        <a href="{% url 'student_export_csv' %}" class="btn btn-success" style="background:#2001ff;border-color:#2001ff;color:#fff;" title="CSV yuklab olish"><i class="fas fa-file-csv"></i> CSV</a>
+        </div>
+        <a href="{% url 'student_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Qo'shish</a>
+    </div>
+</div>
+<div class="card">
+    <div class="card-header between">
+        <h3><i class="fas fa-user-graduate"></i> Barcha o'quvchilar</h3>
+    </div>
+    <form class="filter-bar" method="GET">
+        <input type="text" name="search" placeholder="Ism, familya yoki telefon..." value="{{ active_filters.search }}">
+        <select name="status">
+            <option value="">Barcha holat</option>
+            <option value="aktiv" {% if active_filters.status == 'aktiv' %}selected{% endif %}>Aktiv</option>
+            <option value="muzlatilgan" {% if active_filters.status == 'muzlatilgan' %}selected{% endif %}>Muzlatilgan</option>
+            <option value="kutilyotgan" {% if active_filters.status == 'kutilyotgan' %}selected{% endif %}>Kutilyotgan</option>
+            <option value="chiqarilgan" {% if active_filters.status == 'chiqarilgan' %}selected{% endif %}>Chiqarilgan</option>
+        </select>
+        <select name="group">
+            <option value="">Barcha guruhlar</option>
+            {% for g in groups %}
+            <option value="{{ g.id }}" {% if active_filters.group == g.id|slugify %}selected{% endif %}>{{ g.name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary" style="padding:7px 16px;font-size:13px;"><i class="fas fa-search"></i></button>
+        {% if active_filters.search or active_filters.status or active_filters.group %}
+        <a href="{% url 'student_list' %}" class="btn-clear"><i class="fas fa-times"></i> Tozalash</a>
+        {% endif %}
+    </form>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Ism</th>
+                    <th>Familya</th>
+                    <th>Telefon</th>
+                    <th>Guruhlar</th>
+                    <th>Guruhlar soni</th>
+                    <th>Holat</th>
+                    <th class="hide-mobile">Tug'ilgan sana</th>
+                    <th class="hide-mobile hide-tablet">Ota ism</th>
+                    <th class="hide-mobile hide-tablet">Ota nomer</th>
+                    <th class="hide-mobile hide-tablet">Ona ism</th>
+                    <th class="hide-mobile hide-tablet">Ona nomer</th>
+                    <th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        <div class="student-name-wrap">
+                            <a href="{% url 'student_profile' student.pk %}" class="name-main" style="color:#2563eb;">{{ student.first_name }} {{ student.last_name }}</a>
+                            {% if student.group_count > 0 %}
+                            <span class="name-sub desktop-only">{{ student.group_count }} ta kurs</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="hide-mobile">{{ student.last_name }}</td>
+                    <td>{{ student.phone }}</td>
+                    <td class="col-groups">
+                        {% with gs=student.groups.all %}
+                            {% if gs %}
+                                {% for g in gs %}<span class="group-badge">{{ g.name }}</span>{% endfor %}
+                            {% else %}-{% endif %}
+                        {% endwith %}
+                    </td>
+                    <td><span class="badge" style="background:#eef2ff;color:#2563eb;font-weight:700;">{{ student.group_count }}</span></td>
+                    <td>
+                        {% if student.is_frozen %}
+                        <span class="badge" style="background: #e0f2fe; color: #0369a1;"><i class="fas fa-snowflake"></i> Muzlatilgan</span>
+                        {% elif student.groups.exists %}
+                        <span class="badge badge-green">Aktiv</span>
+                        {% elif student.status == "chiqarilgan" %}
+                        <span class="badge badge-red">Chiqarilgan</span>
+                        {% else %}
+                        <span class="badge badge-yellow">Kutilyotgan</span>
+                        {% endif %}
+                    </td>
+                    <td class="hide-mobile">{{ student.birth_date|date:"d.m.Y"|default:"-" }}</td>
+                    <td class="hide-mobile hide-tablet">{{ student.father_full_name|default:"-" }}</td>
+                    <td class="hide-mobile hide-tablet">{{ student.father_phone|default:"-" }}</td>
+                    <td class="hide-mobile hide-tablet">{{ student.mother_full_name|default:"-" }}</td>
+                    <td class="hide-mobile hide-tablet">{{ student.mother_phone|default:"-" }}</td>
+                    <td class="actions">
+                        <a href="{% url 'student_profile' student.pk %}" class="btn btn-sm btn-primary" title="Profil"><i class="fas fa-user"></i></a>
+                        <a href="{% url 'student_update' student.pk %}" class="btn btn-sm btn-warning" title="Tahrirlash"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'student_delete' student.pk %}" class="btn btn-sm btn-danger" title="O'chirish"><i class="fas fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="13" class="empty">Hozircha o'quvchilar mavjud emas</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

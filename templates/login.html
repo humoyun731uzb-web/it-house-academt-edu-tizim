@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edu Tizim - Kirish</title>
+    <link rel="stylesheet" href="{% static 'fontawesomefree/css/all.min.css' %}">
+    <link rel="stylesheet" href="{% static 'frontend/css/login.css' %}">
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="login-card">
+            <div class="login-icon">
+                <i class="fas fa-graduation-cap" style="font-size: 1.5rem; color: white;"></i>
+            </div>
+            <div class="login-title">Tizimga kirish</div>
+
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <form method="POST">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="id_phone">Telefon raqam</label>
+                    <div class="phone-wrapper">
+                        <span class="phone-prefix">+998</span>
+                        <input type="text" name="phone" id="id_phone" class="phone-input" placeholder="XX XXX XX XX" value="{{ form.phone.value|default:'' }}" required>
+                    </div>
+                    {% if form.phone.errors %}
+                    <div class="field-error">{{ form.phone.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="id_password">Parol</label>
+                    <div class="password-wrapper">
+                        <input type="password" name="password" id="id_password" placeholder="Parolingizni kiriting" required>
+                        <button type="button" class="password-toggle" onclick="togglePassword()">
+                            <i class="far fa-eye" id="eye-icon"></i>
+                        </button>
+                    </div>
+                    {% if form.password.errors %}
+                    <div class="field-error">{{ form.password.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="btn-login">
+                    <i class="fas fa-arrow-right"></i> Kirish
+                </button>
+            </form>
+
+            <div class="login-footer">
+                Edu Tizim &copy; {% now "Y" %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function togglePassword() {
+            const pwd = document.getElementById('id_password');
+            const icon = document.getElementById('eye-icon');
+            if (pwd.type === 'password') {
+                pwd.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                pwd.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        document.querySelectorAll('.alert').forEach(el => {
+            setTimeout(() => el.remove(), 5000);
+        });
+    </script>
+</body>
+</html>

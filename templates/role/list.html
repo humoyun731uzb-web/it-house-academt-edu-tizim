@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Rollar | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Rollar</h2>
+        <span class="page-header-count">{{ roles|length }} ta rol</span>
+    </div>
+    <div class="page-header-right">
+        <a href="{% url 'role_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Qo'shish</a>
+    </div>
+</div>
+<div class="card">
+    <div class="card-header between">
+        <h3><i class="fas fa-user-tag"></i> Barcha rollar</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Rol nomi</th>
+                    <th>Daraja</th>
+                    <th>Yaratilgan sana</th>
+                    <th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for role in roles %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ role.name }}</strong></td>
+                    <td>{% if role.level %}<span class="badge badge-blue">{{ role.level }}</span>{% else %}<span style="color: #94a3b8;">-</span>{% endif %}</td>
+                    <td>{{ role.created_at|date:"d.m.Y" }}</td>
+                    <td class="actions">
+                        <a href="{% url 'role_update' role.pk %}" class="btn btn-sm btn-warning" title="Tahrirlash"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'role_delete' role.pk %}" class="btn btn-sm btn-danger" title="O'chirish"><i class="fas fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="empty">Hozircha rollar mavjud emas</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

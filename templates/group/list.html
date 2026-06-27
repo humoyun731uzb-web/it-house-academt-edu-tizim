@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} | Edu Tizim{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block extra_css %}
+<style>
+/* Responsive card layout for mobile */
+@media (max-width:1200px) {
+  .page-header-right .btn span { display:none; }
+  .filter-bar { position:relative; }
+  .filter-toggle { display:flex !important; }
+  .filter-form { display:none; }
+  .filter-form.open { display:flex;flex-direction:column;gap:8px; }
+  .filter-form .filter-group { min-width:100%; }
+  .filter-search { width:100%; }
+  .filter-search:focus { width:100%; }
+}
+.filter-toggle { display:none;align-items:center;gap:6px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:0.85rem;font-weight:500;color:var(--text);transition:all .15s;width:100%; }
+.filter-toggle:hover { border-color:var(--primary); }
+.filter-toggle i { color:var(--text-muted); }
+.filter-toggle .ft-count { margin-left:auto;font-size:0.75rem;color:var(--text-muted);background:var(--bg);padding:2px 8px;border-radius:4px; }
+
+.group-cards { display:none; }
+@media (max-width:1200px) {
+  .data-table-wrap { display:none; }
+  .group-cards { display:flex;flex-direction:column;gap:10px; }
+}
+@media (min-width:1201px) {
+  .group-cards { display:none !important; }
+  .data-table-wrap { display:block; }
+}
+.group-card { background:#fff;border-radius:12px;border:1px solid var(--border);overflow:hidden;transition:box-shadow .2s; }
+.group-card:hover { box-shadow:var(--shadow-md); }
+.group-card a { display:block;padding:14px 16px;text-decoration:none;color:inherit; }
+.group-card .gc-top { display:flex;justify-content:space-between;align-items:center;margin-bottom:6px; }
+.group-card .gc-name { font-weight:700;font-size:15px;color:var(--text); }
+.group-card .gc-badge { font-size:11px;padding:2px 10px;border-radius:12px;font-weight:500;white-space:nowrap; }
+.group-card .gc-meta { display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--text-light); }
+.group-card .gc-meta span { display:flex;align-items:center;gap:4px; }
+.group-card .gc-meta i { color:var(--primary);width:14px;font-size:11px;text-align:center; }
+.group-card .gc-foot { display:flex;justify-content:space-between;align-items:center;padding:8px 16px;border-top:1px solid #f1f5f9;font-size:12px;color:var(--text-muted); }
+.group-card .gc-foot .teacher-name { color:#6366f1;font-weight:500; }
+.group-card .gc-foot .teacher-name i { margin-right:4px; }
+.group-card .gc-foot .student-count { color:var(--primary);font-weight:600; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>{{ page_title }}</h2>
+        <span class="page-header-count">{{ groups|length }} ta guruh</span>
+    </div>
+    <div class="page-header-right">
+        {% if not request.GET.status %}
+        <a href="{% url 'group_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> <span>Qo'shish</span></a>
+        {% endif %}
+        <a href="{% url 'group_export_excel' %}" class="btn btn-secondary btn-icon" style="background:#2001ff;color:#fff;border-color:#2001ff;" title="Excel yuklab olish"><i class="fas fa-file-excel"></i> <span>Excel</span></a>
+        <a href="{% url 'group_export_csv' %}" class="btn btn-secondary btn-icon" style="background:#2001ff;color:#fff;border-color:#2001ff;" title="CSV yuklab olish"><i class="fas fa-file-csv"></i> <span>CSV</span></a>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <button class="filter-toggle" onclick="var f=this.nextElementSibling;f.classList.toggle('open');var i=this.querySelector('.ft-chevron');i.classList.toggle('fa-chevron-down');i.classList.toggle('fa-chevron-up')">
+        <i class="fas fa-filter"></i> Filtrlar
+        <span class="ft-count">{{ groups|length }} ta</span>
+        <i class="fas fa-chevron-down ft-chevron"></i>
+    </button>
+    <form method="GET" class="filter-form" id="filterForm">
+        <div class="filter-group">
+            <label>O'qituvchi</label>
+            <select name="teacher" class="filter-select">
+                <option value="">Barchasi</option>
+                {% for t in teachers %}
+                <option value="{{ t.pk }}" {% if request.GET.teacher == t.pk|stringformat:'s' %}selected{% endif %}>{{ t.first_name }} {{ t.last_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Boshlanish vaqti</label>
+            <input type="time" name="time_from" value="{{ request.GET.time_from }}" class="filter-input">
+        </div>
+        <div class="filter-group">
+            <label>Tugash vaqti</label>
+            <input type="time" name="time_to" value="{{ request.GET.time_to }}" class="filter-input">
+        </div>
+        <div class="filter-group">
+            <label>Hafta kuni</label>
+            <select name="day" class="filter-select">
+                <option value="">Barchasi</option>
+                <option value="dushanba" {% if request.GET.day == 'dushanba' %}selected{% endif %}>Dushanba</option>
+                <option value="seshanba" {% if request.GET.day == 'seshanba' %}selected{% endif %}>Seshanba</option>
+                <option value="chorshanba" {% if request.GET.day == 'chorshanba' %}selected{% endif %}>Chorshanba</option>
+                <option value="payshanba" {% if request.GET.day == 'payshanba' %}selected{% endif %}>Payshanba</option>
+                <option value="juma" {% if request.GET.day == 'juma' %}selected{% endif %}>Juma</option>
+                <option value="shanba" {% if request.GET.day == 'shanba' %}selected{% endif %}>Shanba</option>
+                <option value="yakshanba" {% if request.GET.day == 'yakshanba' %}selected{% endif %}>Yakshanba</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Kurs</label>
+            <select name="course" class="filter-select">
+                <option value="">Barchasi</option>
+                {% for c in courses %}
+                <option value="{{ c.pk }}" {% if request.GET.course == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Xona</label>
+            <select name="room" class="filter-select">
+                <option value="">Barchasi</option>
+                {% for r in rooms %}
+                <option value="{{ r.pk }}" {% if request.GET.room == r.pk|stringformat:'s' %}selected{% endif %}>{{ r.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Holati</label>
+            <select name="status" class="filter-select" onchange="this.form.submit()">
+                <option value="">Barchasi</option>
+                <option value="aktiv" {% if request.GET.status == 'aktiv' %}selected{% endif %}>Aktiv</option>
+                <option value="kutilyotgan" {% if request.GET.status == 'kutilyotgan' %}selected{% endif %}>Kutilyotgan</option>
+                <option value="arxivlangan" {% if request.GET.status == 'arxivlangan' %}selected{% endif %}>Arxivlangan</option>
+            </select>
+        </div>
+        <div class="filter-group filter-group-search">
+            <label>Qidiruv</label>
+            <div class="filter-search-wrap">
+                <i class="fas fa-search"></i>
+                <input type="text" name="search" value="{{ request.GET.search }}" class="filter-search" placeholder="Guruh nomi...">
+            </div>
+        </div>
+        <div class="filter-group filter-group-actions">
+            <label>&nbsp;</label>
+            <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter"></i> Filtr</button>
+            <a href="{% url 'group_list' %}{% if request.GET.status %}?status={{ request.GET.status }}{% endif %}" class="btn btn-secondary btn-sm"><i class="fas fa-times"></i></a>
+        </div>
+    </form>
+</div>
+
+<div class="data-table-wrap">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th class="col-num">№</th>
+                <th class="col-name">Guruh nomi</th>
+                <th class="col-course">Kurs</th>
+                <th class="col-level">Daraja</th>
+                <th class="col-day">Kun</th>
+                <th class="col-time">Dars vaqti</th>
+                <th class="col-range">Guruh vaqti</th>
+                <th class="col-students">O'quvchilar</th>
+                <th class="col-teacher">O'qituvchi</th>
+                <th class="col-room">Xona</th>
+                <th class="col-tg">Telegram</th>
+                <th class="col-status">Holati</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for group in groups %}
+            <tr class="{% if group.status == 'kutilyotgan' %}row-pending{% elif group.is_date_overdue or group.is_ending_soon %}row-overdue{% endif %}">
+                <td class="col-num">{{ forloop.counter }}</td>
+                <td class="col-name">
+                    <a href="{% url 'group_detail' group.pk %}" class="group-link">{{ group.name }}</a>
+                </td>
+                <td class="col-course"><span class="course-tag">{{ group.course.name }}</span></td>
+                <td class="col-level"><span class="level-badge">{{ group.education_type|title }}</span></td>
+                <td class="col-day">
+                    {% with lt=group.lesson_times.all|first %}
+                        {% if lt %}
+                        <span class="day-text">{{ lt.get_days_display }}</span>
+                        {% else %}
+                        <span class="muted">-</span>
+                        {% endif %}
+                    {% endwith %}
+                </td>
+                <td class="col-time">
+                    {% with lt=group.lesson_times.all|first %}
+                        {% if lt %}
+                        <span class="time-text">{{ lt.start_time|time:"H:i" }} - {{ lt.end_time|time:"H:i" }}</span>
+                        {% else %}
+                        <span class="muted">-</span>
+                        {% endif %}
+                    {% endwith %}
+                </td>
+                <td class="col-range">
+                    <span class="range-text">{{ group.start_date|date:"d.m.Y" }} - {{ group.end_date|date:"d.m.Y" }}</span>
+                </td>
+                <td class="col-students">
+                    <span class="student-count">{{ group.student_count }}</span>
+                </td>
+                <td class="col-teacher">
+                    {% if group.teacher %}
+                    <span>{{ group.teacher.first_name }} {{ group.teacher.last_name }}</span>
+                    {% else %}
+                    <span class="muted">-</span>
+                    {% endif %}
+                </td>
+                <td class="col-room">
+                    {% if group.room %}
+                    <span>{{ group.room.name }}</span>
+                    {% else %}
+                    <span class="muted">-</span>
+                    {% endif %}
+                </td>
+                <td class="col-tg">
+                    {% if group.telegram_link %}
+                    <a href="{{ group.telegram_link }}" target="_blank" class="tg-link"><i class="fab fa-telegram-plane"></i></a>
+                    {% else %}
+                    <span class="muted">-</span>
+                    {% endif %}
+                </td>
+                <td class="col-status">
+                    <span class="status-badge status-{{ group.status }}">{{ group.get_status_display }}</span>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="12" class="empty">{{ page_title }} mavjud emas</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="group-cards">
+    {% for group in groups %}
+    <div class="group-card">
+        <a href="{% url 'group_detail' group.pk %}">
+            <div class="gc-top">
+                <div class="gc-name">{{ group.name }}</div>
+                <span class="gc-badge status-badge status-{{ group.status }}">{{ group.get_status_display }}</span>
+            </div>
+            <div class="gc-meta">
+                <span><i class="fas fa-book"></i> {{ group.course.name }}</span>
+                <span><i class="far fa-calendar-alt"></i>
+                    {% with lt=group.lesson_times.all|first %}
+                        {% if lt %}{{ lt.get_days_display }}{% else %}-{% endif %}
+                    {% endwith %}
+                </span>
+                <span><i class="far fa-clock"></i>
+                    {% with lt=group.lesson_times.all|first %}
+                        {% if lt %}{{ lt.start_time|time:"H:i" }}—{{ lt.end_time|time:"H:i" }}{% else %}-{% endif %}
+                    {% endwith %}
+                </span>
+                <span><i class="fas fa-layer-group"></i> {{ group.education_type|title }}</span>
+                <span><i class="far fa-calendar-check"></i> {{ group.start_date|date:"d.m.Y" }}—{{ group.end_date|date:"d.m.Y" }}</span>
+                <span><i class="fas fa-door-open"></i> {{ group.room.name|default:"-" }}</span>
+            </div>
+        </a>
+        <div class="gc-foot">
+            <span class="student-count"><i class="fas fa-user-graduate"></i> {{ group.student_count }} ta</span>
+            {% if group.teacher %}
+            <span class="teacher-name"><i class="fas fa-chalkboard-teacher"></i> {{ group.teacher.first_name }} {{ group.teacher.last_name }}</span>
+            {% endif %}
+            {% if group.telegram_link %}
+            <a href="{{ group.telegram_link }}" target="_blank" style="color:#0088cc;"><i class="fab fa-telegram-plane"></i></a>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div style="text-align:center;padding:60px 20px;color:var(--text-light);">
+        <i class="fas fa-folder-open" style="font-size:48px;opacity:0.3;margin-bottom:12px;color:var(--primary);display:block;"></i>
+        <p>{{ page_title }} mavjud emas</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

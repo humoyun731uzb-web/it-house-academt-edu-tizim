@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}{{ student.first_name }} {{ student.last_name }} | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>{{ student.first_name }} {{ student.last_name }}</h2>
+        <span class="page-header-count">O'quvchi profili</span>
+    </div>
+</div>
+<div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <div>
+        <div class="card" style="margin-bottom: 24px;">
+            <div class="card-header">
+                <h3><i class="fas fa-user-graduate"></i> O'quvchi ma'lumotlari</h3>
+            </div>
+            <div class="card-body">
+                {% if student.is_frozen %}
+                <div class="alert" style="background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-snowflake"></i>
+                    <strong>Muzlatilgan!</strong> {{ student.frozen_remaining_days }} kun qoldi ({{ student.frozen_until|date:"d.m.Y" }} gacha)
+                </div>
+                {% endif %}
+                <table class="table min">
+                    <tbody>
+                        <tr><td><strong>Ism:</strong></td><td>{{ student.first_name }}</td></tr>
+                        <tr><td><strong>Familya:</strong></td><td>{{ student.last_name }}</td></tr>
+                        <tr><td><strong>Telefon:</strong></td><td>{{ student.phone }}</td></tr>
+                        <tr><td><strong>Guruhlar:</strong></td><td>
+                            {% with gs=student.groups.all %}
+                                {% if gs %}
+                                    {% for g in gs %}
+                                        <a href="{% url 'group_detail' g.pk %}" style="color: #2563eb; display: inline-block;">{{ g.name }}</a>{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            {% endwith %}
+                            {% with gs=student.graduated_groups.all %}
+                                {% if gs %}
+                                    <br><span style="font-size:12px;color:#94a3b8;">Bitirgan:</span>
+                                    {% for g in gs %}
+                                        <span style="color: #16a34a; font-size:12px;">{{ g.name }}</span>{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            {% endwith %}
+                            {% if not student.groups.exists and not student.graduated_groups.exists %}
+                                {% if student.status == "chiqarilgan" %}
+                                    <span class="badge badge-red">Chiqarilgan</span>
+                                {% else %}
+                                    <span class="badge badge-yellow">Kutilyotgan</span>
+                                {% endif %}
+                            {% endif %}
+                        </td></tr>
+                        <tr><td><strong>Tug'ilgan sana:</strong></td><td>{{ student.birth_date|date:"d.m.Y"|default:"-" }}</td></tr>
+                        <tr><td><strong>Marketing:</strong></td><td>{{ student.marketing_survey.name|default:"-" }}</td></tr>
+                        <tr><td><strong>Qo'shimcha:</strong></td><td>{{ student.additional_info|default:"-" }}</td></tr>
+                        <tr><td><strong>Otasining ismi:</strong></td><td>{{ student.father_full_name|default:"-" }}</td></tr>
+                        <tr><td><strong>Otasining nomeri:</strong></td><td>{{ student.father_phone|default:"-" }}</td></tr>
+                        <tr><td><strong>Onasining ismi:</strong></td><td>{{ student.mother_full_name|default:"-" }}</td></tr>
+                        <tr><td><strong>Onasining nomeri:</strong></td><td>{{ student.mother_phone|default:"-" }}</td></tr>
+                        <tr><td><strong>Ro'yxatdan o'tgan:</strong></td><td>{{ student.created_at|date:"d.m.Y H:i" }}</td></tr>
+                    </tbody>
+                </table>
+                <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+                    <a href="{% url 'student_update' student.pk %}" class="btn btn-warning"><i class="fas fa-edit"></i> Tahrirlash</a>
+                    {% if student.groups.exists %}
+                    <a href="{% url 'student_freeze' student.pk %}" class="btn" style="background: #e0f2fe; color: #0369a1;"><i class="fas fa-snowflake"></i> Muzlatish</a>
+                    <a href="{% url 'student_remove_from_group' student.pk %}" class="btn btn-danger"><i class="fas fa-user-minus"></i> Guruhdan chiqarish</a>
+                    {% else %}
+                    <a href="{% url 'student_add_to_group' student.pk %}" class="btn btn-primary"><i class="fas fa-user-plus"></i> Guruhga qo'shish</a>
+                    {% endif %}
+                    {% if student.is_frozen %}
+                    <form method="post" action="{% url 'student_unfreeze' student.pk %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn" style="background: #fef3c7; color: #d97706;"><i class="fas fa-play"></i> Muzlatishni bekor qilish</button>
+                    </form>
+                    {% endif %}
+                    <a href="{% url 'student_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Orqaga</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% if attendance_history %}
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-clipboard-check"></i> Davomat tarixi</h3>
+            </div>
+            <div class="card-body" style="padding:0;">
+                <table class="table min">
+                    <thead>
+                        <tr>
+                            <th>Sana</th>
+                            <th>Guruh</th>
+                            <th>Holat</th>
+                            <th>Izoh</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in attendance_history %}
+                        <tr>
+                            <td>{{ a.date|date:"d.m.Y" }}</td>
+                            <td>{{ a.group.name }}</td>
+                            <td>
+                                {% if a.status == 'present' %}
+                                <span style="color:#22c55e;font-weight:500;"><i class="fas fa-check-circle"></i> Keldi</span>
+                                {% elif a.status == 'boshqoldi' %}
+                                <span style="color:#64748b;font-weight:500;"><i class="fas fa-forward"></i> Boshqoldi</span>
+                                {% elif a.status == 'absent' %}
+                                <span style="color:#ef4444;font-weight:500;"><i class="fas fa-times-circle"></i> Kelmadi</span>
+                                {% elif a.status == 'excused' %}
+                                <span style="color:#f59e0b;font-weight:500;"><i class="fas fa-exclamation-circle"></i> Sababli</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ a.notes|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-history"></i> O'quvchi tarixi</h3>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <table class="table min">
+                    <thead>
+                        <tr>
+                            <th>Sana</th>
+                            <th>Harakat</th>
+                            <th>Guruh</th>
+                            <th>Sabab</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.created_at|date:"d.m.Y H:i" }}</td>
+                            <td>
+                                {% if log.action == 'joined' %}
+                                <span style="color:#16a34a;font-weight:500;"><i class="fas fa-user-plus"></i> Guruhga qo'shildi</span>
+                                {% elif log.action == 'removed' %}
+                                <span style="color:#dc2626;font-weight:500;"><i class="fas fa-user-minus"></i> Guruhdan chiqarildi</span>
+                                {% elif log.action == 'transferred' %}
+                                <span style="color:#2563eb;font-weight:500;"><i class="fas fa-exchange-alt"></i> Ko'chirildi</span>
+                                {% elif log.action == 'graduated' %}
+                                <span style="color:#16a34a;font-weight:500;"><i class="fas fa-graduation-cap"></i> Bitirdi</span>
+                                {% elif log.action == 'frozen' %}
+                                <span style="color:#0369a1;font-weight:500;"><i class="fas fa-snowflake"></i> Muzlatildi</span>
+                                {% elif log.action == 'unfrozen' %}
+                                <span style="color:#d97706;font-weight:500;"><i class="fas fa-play"></i> Muzlatish bekor qilindi</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.action == 'transferred' %}
+                                <div style="display:flex;align-items:center;gap:8px;font-size:13px;">
+                                    <span style="background:#111827;color:white;padding:3px 10px;border-radius:6px;font-weight:600;font-size:12px;white-space:nowrap;">{{ log.group.name }}</span>
+                                    <svg width="32" height="14" viewBox="0 0 32 14"><path d="M3 7h22M20 3l6 4-6 4" stroke="#94a3b8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    {% if log.target_name == 'Kutilyotganlar' %}
+                                    <span style="background:#f59e0b;color:white;padding:3px 10px;border-radius:6px;font-weight:600;font-size:12px;white-space:nowrap;">Kutilyotganlar</span>
+                                    {% elif log.target_name %}
+                                    <span style="background:#2563eb;color:white;padding:3px 10px;border-radius:6px;font-weight:600;font-size:12px;white-space:nowrap;">{{ log.target_name }}</span>
+                                    {% else %}
+                                    <span style="color:#94a3b8;font-size:12px;">—</span>
+                                    {% endif %}
+                                </div>
+                                {% elif log.action == 'graduated' %}
+                                <span style="background:#16a34a;color:white;padding:3px 10px;border-radius:6px;font-weight:600;font-size:12px;">{{ log.group.name }}</span>
+                                {% elif log.action == 'removed' %}
+                                <span style="background:#dc2626;color:white;padding:3px 10px;border-radius:6px;font-weight:600;font-size:12px;">{{ log.group.name }}</span>
+                                {% elif log.action == 'joined' %}
+                                <span style="background:#16a34a;color:white;padding:3px 10px;border-radius:6px;font-weight:600;font-size:12px;">{{ log.group.name }}</span>
+                                {% else %}
+                                <span style="background:#6b7280;color:white;padding:3px 10px;border-radius:6px;font-weight:600;font-size:12px;">{{ log.group.name|default:"-" }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="color:#6b7280;font-size:13px;">{{ log.reason|default:"-" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="empty">Hali hech qanday harakat yo'q</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

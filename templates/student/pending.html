@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Kutilyotgan o'quvchilar | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Kutilyotgan o'quvchilar</h2>
+        <span class="page-header-count">{{ students|length }} ta o'quvchi</span>
+    </div>
+    <div class="page-header-right" style="display:flex;gap:6px;">
+        <a href="{% url 'pending_export_excel' %}" class="btn btn-success btn-sm" style="background:#2001ff;border-color:#2001ff;color:#fff;"><i class="fas fa-file-excel"></i> Excel</a>
+        <a href="{% url 'pending_export_csv' %}" class="btn btn-success btn-sm" style="background:#2001ff;border-color:#2001ff;color:#fff;"><i class="fas fa-file-csv"></i> CSV</a>
+        <a href="{% url 'student_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Qo'shish</a>
+    </div>
+</div>
+{% regroup students by desired_course as course_groups %}
+{% for course_group in course_groups %}
+{% with course=course_group.grouper %}
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header between">
+        <h3>
+            <i class="fas fa-book" style="color:#2563eb;"></i>
+            {% if course %}{{ course.name }}{% else %}Kurs tanlanmagan{% endif %}
+            <span class="badge badge-primary" style="margin-left:8px;">{{ course_group.list|length }} ta</span>
+        </h3>
+        <div style="display:flex;gap:6px;">
+            <a href="{% url 'student_create' %}?course={{ course.pk }}" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i> Qo'shish</a>
+        </div>
+    </div>
+    <div class="card-body" style="padding:0;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Ism</th>
+                    <th>Familya</th>
+                    <th>Telefon</th>
+                    <th>Marketing</th>
+                    <th>Qabul vaqti</th>
+                    <th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in course_group.list %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><a href="{% url 'student_profile' student.pk %}" style="color:#2563eb;">{{ student.first_name }}</a></td>
+                    <td>{{ student.last_name }}</td>
+                    <td>{{ student.phone }}</td>
+                    <td>{{ student.marketing_survey.name|default:"-" }}</td>
+                    <td>{{ student.created_at|date:"d.m.Y" }}</td>
+                    <td class="actions">
+                        <a href="{% url 'student_add_to_group' student.pk %}" class="btn btn-sm btn-primary" title="Guruhga qo'shish"><i class="fas fa-user-plus"></i></a>
+                        <a href="{% url 'student_profile' student.pk %}" class="btn btn-sm btn-secondary" title="Profil"><i class="fas fa-user"></i></a>
+                        <a href="{% url 'student_update' student.pk %}" class="btn btn-sm btn-warning" title="Tahrirlash"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'student_delete' student.pk %}" class="btn btn-sm btn-danger" title="O'chirish"><i class="fas fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endwith %}
+{% empty %}
+<div class="card">
+    <div class="card-body" style="text-align:center;padding:40px;">
+        <i class="fas fa-check-circle" style="font-size:48px;color:#16a34a;display:block;margin-bottom:12px;"></i>
+        <h3 style="color:#374151;">Barcha o'quvchilar guruhga biriktirilgan</h3>
+        <p style="color:#94a3b8;margin-top:4px;">Hozircha kutilyotgan o'quvchilar mavjud emas</p>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
