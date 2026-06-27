@@ -7,7 +7,7 @@ const CODE_EXPIRY = 300
 export default function VerifyCode() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { phone } = location.state || {}
+  const { phone, code: initialCode, telegram_connected } = location.state || {}
   const [digits, setDigits] = useState(["", "", "", "", "", ""])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -18,6 +18,15 @@ export default function VerifyCode() {
   useEffect(() => {
     if (!phone) navigate("/")
   }, [phone, navigate])
+
+  useEffect(() => {
+    if (initialCode) {
+      const codeDigits = initialCode.split("").slice(0, 6)
+      setDigits(codeDigits)
+      const timer = setTimeout(() => verifyCode(initialCode), 300)
+      return () => clearTimeout(timer)
+    }
+  }, [])
 
   useEffect(() => {
     inputRefs.current[0]?.focus()
@@ -131,6 +140,9 @@ export default function VerifyCode() {
             <h1 className="text-[26px] font-bold text-[#111827] tracking-[-0.5px]">Tasdiqlash kodi</h1>
             <p className="text-[15px] text-[#6B7280] font-normal mt-2 leading-relaxed">
               6 xonali kod <span className="text-[#2001FF] font-semibold">{formatPhone(phone || "")}</span> raqamiga yuborildi
+              {telegram_connected === false && (
+                <span className="block text-xs text-gray-400 mt-1">Telegram botga ulanish shart emas</span>
+              )}
             </p>
           </div>
 
