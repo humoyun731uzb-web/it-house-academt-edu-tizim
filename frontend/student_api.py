@@ -3,6 +3,7 @@ import random
 import re
 import string
 from datetime import datetime, date, timedelta, time
+from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import User
@@ -51,7 +52,7 @@ def student_required(view_func):
     return wrapper
 
 
-BOT_TOKEN = "8989280576:AAH_1t5HbD1cRQhHvRNG67oAzeDIrA-rZzw"
+BOT_TOKEN = settings.BOT_TOKEN
 
 
 def send_telegram_message(chat_id, text):

@@ -1,0 +1,8 @@
+﻿Django>=5.2
+psycopg2-binary
+python-dotenv
+openpyxl
+requests
+fontawesomefree
+gunicorn
+whitenoise
