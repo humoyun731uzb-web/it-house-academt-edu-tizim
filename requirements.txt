@@ -7,3 +7,4 @@ fontawesomefree
 gunicorn
 whitenoise
 Pillow
+dj-database-url
