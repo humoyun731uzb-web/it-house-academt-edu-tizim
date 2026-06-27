@@ -2067,3 +2067,201 @@ def absence_reason_delete(request, pk):
         messages.success(request, "Davomat sababi o'chirildi")
         return redirect("absence_reason_list")
     return render(request, "absence_reason/delete.html", {"reason": reason})
+
+
+# ---- Student Web Interface ----
+
+def student_web_login(request):
+    if request.user.is_authenticated:
+        try:
+            if hasattr(request.user, 'student_profile'):
+                return redirect("student_dashboard")
+        except:
+            pass
+    error = None
+    phone = ""
+    if request.method == "POST":
+        phone = request.POST.get("phone", "").strip()
+        password = request.POST.get("password", "")
+        if not phone or not password:
+            error = "Telefon raqam va parolni kiriting"
+        else:
+            raw = re.sub(r'\D', '', phone)
+            if len(raw) >= 9:
+                digits9 = raw[-9:]
+                from django.contrib.auth import authenticate, login
+                student = Student.objects.filter(
+                    Q(phone=raw) | Q(phone='+' + raw) | Q(phone='998' + digits9) | Q(phone='+998' + digits9)
+                ).first()
+                if student and student.user:
+                    user = authenticate(username=student.user.username, password=password)
+                    if user:
+                        login(request, user)
+                        return redirect("student_dashboard")
+            error = "Telefon raqam yoki parol noto'g'ri"
+    return render(request, "student/web_login.html", {"error": error, "phone": phone})
+
+
+def student_web_logout(request):
+    from django.contrib.auth import logout
+    logout(request)
+    return redirect("student_web_login")
+
+
+def student_required(view_func):
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect("student_web_login")
+        try:
+            student = request.user.student_profile
+        except:
+            messages.error(request, "Siz o'quvchi emassiz!")
+            return redirect("student_web_login")
+        return view_func(request, student, *args, **kwargs)
+    return wrapper
+
+
+@student_required
+def student_dashboard(request, student):
+    groups = student.groups.filter(status__in=["aktiv", "kutilyotgan"]).select_related("course", "room", "teacher")
+    today = date.today()
+    day_name_map = {
+        0: "dushanba", 1: "seshanba", 2: "chorshanba",
+        3: "payshanba", 4: "juma", 5: "shanba", 6: "yakshanba"
+    }
+    today_name = day_name_map[today.weekday()]
+
+    today_classes = []
+    for g in groups:
+        for lt in g.lesson_times.all():
+            days_list = [d.strip() for d in lt.days.split(",") if d.strip()]
+            if today_name in days_list:
+                today_classes.append({
+                    "group": g,
+                    "start_time": lt.start_time,
+                    "end_time": lt.end_time,
+                })
+    today_classes.sort(key=lambda x: x["start_time"])
+
+    all_attendances = Attendance.objects.filter(student=student)
+    total = all_attendances.count()
+    present_count = all_attendances.filter(status="present").count()
+    present_rate = round(present_count / total * 100) if total > 0 else 0
+
+    this_month_lessons = all_attendances.filter(date__year=today.year, date__month=today.month).count()
+
+    return render(request, "student/web_dashboard.html", {
+        "student": student,
+        "groups": groups,
+        "today_classes": today_classes,
+        "today": today,
+        "present_rate": present_rate,
+        "this_month_lessons": this_month_lessons,
+        "active_tab": "dashboard",
+    })
+
+
+@student_required
+def student_profile(request, student):
+    return render(request, "student/web_profile.html", {
+        "student": student,
+        "active_tab": "profile",
+    })
+
+
+@student_required
+def student_schedule(request, student):
+    groups = student.groups.filter(status__in=["aktiv", "kutilyotgan"]).select_related("course", "room", "teacher")
+    selected_group_id = request.GET.get("group", "")
+    filtered_groups = groups
+    if selected_group_id:
+        filtered_groups = groups.filter(id=selected_group_id)
+
+    day_name_map_uz = {
+        0: "dushanba", 1: "seshanba", 2: "chorshanba",
+        3: "payshanba", 4: "juma", 5: "shanba", 6: "yakshanba"
+    }
+    day_label_uz = {
+        "dushanba": "Dushanba", "seshanba": "Seshanba", "chorshanba": "Chorshanba",
+        "payshanba": "Payshanba", "juma": "Juma", "shanba": "Shanba", "yakshanba": "Yakshanba"
+    }
+    day_order = {d: i for i, d in enumerate(day_label_uz.keys())}
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())
+
+    lessons_by_day = {}
+    for g in filtered_groups:
+        for lt in g.lesson_times.all():
+            days_list = [d.strip() for d in lt.days.split(",") if d.strip()]
+            for d in days_list:
+                if d not in lessons_by_day:
+                    lessons_by_day[d] = []
+                lessons_by_day[d].append({
+                    "group": g,
+                    "start_time": lt.start_time,
+                    "end_time": lt.end_time,
+                })
+
+    for d in lessons_by_day:
+        lessons_by_day[d].sort(key=lambda x: x["start_time"])
+
+    schedule = []
+    for i in range(7):
+        day_name = day_name_map_uz[i]
+        lesson_date = week_start + timedelta(days=i)
+        lessons = lessons_by_day.get(day_name, [])
+        schedule.append((day_name, {
+            "label": day_label_uz[day_name],
+            "date": lesson_date,
+            "lessons": lessons,
+        }))
+
+    return render(request, "student/web_schedule.html", {
+        "student": student,
+        "groups": groups,
+        "schedule": schedule,
+        "selected_group_id": selected_group_id,
+        "active_tab": "schedule",
+    })
+
+
+@student_required
+def student_attendance(request, student):
+    groups = student.groups.filter(status__in=["aktiv", "kutilyotgan"])
+    selected_group_id = request.GET.get("group", "")
+    selected_month = request.GET.get("month", "")
+
+    today = date.today()
+    months = []
+    for m in range(1, 13):
+        months.append({
+            "value": str(m),
+            "label": date(today.year, m, 1).strftime("%B"),
+            "selected": (selected_month == str(m)) or (not selected_month and m == today.month),
+        })
+
+    attendances = Attendance.objects.filter(student=student).select_related("group")
+    if selected_group_id:
+        attendances = attendances.filter(group_id=selected_group_id)
+    month_val = int(selected_month) if selected_month else today.month
+    year_val = today.year
+    if selected_month and int(selected_month) > today.month:
+        year_val = today.year - 1
+    attendances = attendances.filter(date__year=year_val, date__month=month_val)
+    attendances = attendances.order_by("-date")
+
+    stats = {
+        "present": attendances.filter(status="present").count(),
+        "absent": attendances.filter(status="absent").count(),
+        "excused": attendances.filter(status="excused").count(),
+    }
+
+    return render(request, "student/web_attendance.html", {
+        "student": student,
+        "groups": groups,
+        "attendances": attendances,
+        "stats": stats,
+        "months": months,
+        "selected_group_id": selected_group_id,
+        "active_tab": "attendance",
+    })

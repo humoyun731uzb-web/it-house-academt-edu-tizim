@@ -1,0 +1,108 @@
+{% extends "student/web_base.html" %}
+{% block title %}Bosh sahifa | IT House{% endblock %}
+{% block content %}
+<div class="page-title">
+    <i class="fas fa-home" style="color:#6366f1;"></i>
+    Assalomu alaykum, {{ student.first_name }}!
+</div>
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="fas fa-layer-group"></i></div>
+        <div class="stat-info">
+            <div class="stat-number">{{ groups|length }}</div>
+            <div class="stat-label">Faol guruhlar</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-book-open"></i></div>
+        <div class="stat-info">
+            <div class="stat-number">{{ today_classes|length }}</div>
+            <div class="stat-label">Bugungi darslar</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-info">
+            <div class="stat-number">{{ present_rate }}%</div>
+            <div class="stat-label">Davomat foizi</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon orange"><i class="fas fa-calendar-week"></i></div>
+        <div class="stat-info">
+            <div class="stat-number">{{ this_month_lessons }}</div>
+            <div class="stat-label">Oy davomidagi darslar</div>
+        </div>
+    </div>
+</div>
+{% if today_classes %}
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-clock" style="color:#6366f1;"></i> Bugungi darslar</h3>
+        <span style="font-size:13px;color:#94a3b8;">{{ today|date:"l, d.m.Y" }}</span>
+    </div>
+    <div class="card-body">
+        {% for lesson in today_classes %}
+        <div class="class-item">
+            <div class="class-time">
+                <div class="time">{{ lesson.start_time|time:"H:i" }}</div>
+                <div class="label">{{ lesson.end_time|time:"H:i" }}</div>
+            </div>
+            <div class="class-info">
+                <div class="name">{{ lesson.group.name }}</div>
+                <div class="detail">
+                    <span><i class="fas fa-book" style="font-size:11px;"></i> {{ lesson.group.course.name }}</span>
+                    {% if lesson.group.room %}
+                    <span style="margin-left:10px;"><i class="fas fa-door-open" style="font-size:11px;"></i> {{ lesson.group.room.name }}</span>
+                    {% endif %}
+                    {% if lesson.group.teacher %}
+                    <span style="margin-left:10px;"><i class="fas fa-chalkboard-teacher" style="font-size:11px;"></i> {{ lesson.group.teacher.first_name }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-clock" style="color:#6366f1;"></i> Bugungi darslar</h3>
+        <span style="font-size:13px;color:#94a3b8;">{{ today|date:"l, d.m.Y" }}</span>
+    </div>
+    <div class="empty-state">
+        <i class="fas fa-calendar-check"></i>
+        <p>Bugun darslar yo'q. Dam oling!</p>
+    </div>
+</div>
+{% endif %}
+{% if groups %}
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-layer-group" style="color:#6366f1;"></i> Mening guruhlarim</h3>
+    </div>
+    <div class="card-body">
+        {% for g in groups %}
+        <a href="{% url 'student_schedule' %}?group={{ g.id }}" class="group-card">
+            <div class="group-icon {% cycle 'purple' 'green' 'blue' %}">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="group-info">
+                <div class="group-name">{{ g.name }}</div>
+                <div class="group-meta">
+                    <span><i class="fas fa-book"></i> {{ g.course.name }}</span>
+                    {% if g.teacher %}
+                    <span><i class="fas fa-chalkboard-teacher"></i> {{ g.teacher.first_name }}</span>
+                    {% endif %}
+                    {% if g.room %}
+                    <span><i class="fas fa-door-open"></i> {{ g.room.name }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="group-arrow"><i class="fas fa-chevron-right"></i></div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

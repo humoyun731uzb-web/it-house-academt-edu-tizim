@@ -1,0 +1,73 @@
+{% extends "student/web_base.html" %}
+{% block title %}Profil | IT House{% endblock %}
+{% block content %}
+<div class="page-title">
+    <i class="fas fa-user" style="color:#6366f1;"></i>
+    Mening profilim
+</div>
+<div class="card">
+    <div class="card-body">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:white;flex-shrink:0;">
+                {{ student.first_name|first|upper }}{{ student.last_name|first|upper }}
+            </div>
+            <div>
+                <div style="font-size:20px;font-weight:700;">{{ student.first_name }} {{ student.last_name }}</div>
+                <div style="font-size:14px;color:#64748b;">O'quvchi</div>
+            </div>
+        </div>
+        <div class="profile-info">
+            <div class="row">
+                <div class="label">Ism</div>
+                <div class="value">{{ student.first_name }}</div>
+            </div>
+            <div class="row">
+                <div class="label">Familya</div>
+                <div class="value">{{ student.last_name }}</div>
+            </div>
+            <div class="row">
+                <div class="label">Telefon</div>
+                <div class="value">{{ student.phone }}</div>
+            </div>
+            {% if student.birth_date %}
+            <div class="row">
+                <div class="label">Tug'ilgan sana</div>
+                <div class="value">{{ student.birth_date|date:"d.m.Y" }}</div>
+            </div>
+            {% endif %}
+            <div class="row">
+                <div class="label">Guruhlar</div>
+                <div class="value">
+                    {% for g in student.groups.all %}
+                    <span class="badge badge-blue" style="margin:2px;">{{ g.name }}</span>
+                    {% empty %}
+                    <span style="color:#94a3b8;">Guruh yo'q</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% if student.graduated_groups.all %}
+            <div class="row">
+                <div class="label">Bitirgan</div>
+                <div class="value">
+                    {% for g in student.graduated_groups.all %}
+                    <span class="badge badge-green" style="margin:2px;">{{ g.name }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% if student.father_full_name %}
+            <div class="row">
+                <div class="label">Otasi</div>
+                <div class="value">{{ student.father_full_name }} {% if student.father_phone %}({{ student.father_phone }}){% endif %}</div>
+            </div>
+            {% endif %}
+            {% if student.mother_full_name %}
+            <div class="row">
+                <div class="label">Onasi</div>
+                <div class="value">{{ student.mother_full_name }} {% if student.mother_phone %}({{ student.mother_phone }}){% endif %}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
