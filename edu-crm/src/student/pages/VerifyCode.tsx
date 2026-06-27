@@ -83,7 +83,7 @@ export default function VerifyCode() {
   const handleResend = async () => {
     setResending(true)
     try {
-      const res = await api.sendCode(phone)
+      await api.sendCode(phone)
       setTimeLeft(CODE_EXPIRY)
       setDigits(["", "", "", "", "", ""])
       setError("")

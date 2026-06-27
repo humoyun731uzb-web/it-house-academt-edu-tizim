@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { MessageCircle, Search, ChevronRight, Clock, CheckCheck } from "lucide-react"
+import { MessageCircle, Search, ChevronRight, Clock } from "lucide-react"
 
 const chats = [
   { id: 1, name: "Mr. Khan", role: "Matematika o'qituvchisi", lastMsg: "Ertaga imtihon 10:00 da", time: "5 min", unread: 2, online: true, avatar: "K" },

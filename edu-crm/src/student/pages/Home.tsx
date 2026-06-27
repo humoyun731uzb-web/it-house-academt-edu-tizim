@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import {
   Bell, BookOpen, Clock, MapPin, TrendingUp, CreditCard,
   CheckCircle2, XCircle, AlertCircle, ChevronRight, Calendar,
-  GraduationCap, User,
+  User,
 } from "lucide-react"
 import { api } from "../api"
 
@@ -11,14 +11,12 @@ export default function Home() {
   const navigate = useNavigate()
   const [classes, setClasses] = useState<any[]>([])
   const [studentName, setStudentName] = useState("")
-  const [studentPhone, setStudentPhone] = useState("")
   const [groupName, setGroupName] = useState("")
   const [stats, setStats] = useState<any>(null)
 
   useEffect(() => {
     api.profile().then((res) => {
       setStudentName(res.student.first_name || "O'quvchi")
-      setStudentPhone(res.student.phone || "")
       if (res.groups.length > 0) {
         setGroupName(res.groups[0].name || "")
       }

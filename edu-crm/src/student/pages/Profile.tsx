@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   User, Phone, BookOpen, ChevronRight, LogOut, Shield, Star,
-  CalendarDays, ChevronLeft, Mail,
+  CalendarDays, ChevronLeft,
 } from "lucide-react"
 import { api } from "../api"
 import type { StudentProfile, GroupInfo } from "../types"
