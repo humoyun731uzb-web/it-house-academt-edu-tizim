@@ -32,6 +32,11 @@ DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 ALLOWED_HOSTS = ['*']
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://it-house-academt-edu-tizim-production.up.railway.app',
+    'https://*.railway.app',
+]
+
 
 # Application definition
 
