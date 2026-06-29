@@ -1,319 +1,370 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import {
-  Bell, BookOpen, Clock, MapPin, TrendingUp, CreditCard,
-  CheckCircle2, XCircle, AlertCircle, ChevronRight, Calendar,
-  User,
+  Bell, BookOpen, Clock, MapPin, ChevronLeft, ChevronRight,
+  Menu, Home as HomeIcon,
 } from "lucide-react"
 import { api } from "../api"
+import { useDrawer } from "../context/DrawerContext"
+import type { ScheduleDay } from "../types"
+
+const DAYS_UZ = ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"]
+const MONTHS_UZ = [
+  "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
+  "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr",
+]
+
+function getCalendarDays(year: number, month: number) {
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+  const startDayOfWeek = firstDay.getDay()
+  const daysInMonth = lastDay.getDate()
+  const startOffset = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1
+  const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7
+  const days: (number | null)[] = []
+
+  for (let i = 0; i < totalCells; i++) {
+    const dayNum = i - startOffset + 1
+    days.push(dayNum >= 1 && dayNum <= daysInMonth ? dayNum : null)
+  }
+  return days
+}
+
+const weekdayMap = ["yakshanba", "dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba"]
+
+const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
+  upcoming: { label: "Kutilmoqda", bg: "bg-[#2001FF]/10", text: "text-[#2001FF]" },
+  ongoing: { label: "Davom etmoqda", bg: "bg-green-50", text: "text-green-600" },
+  finished: { label: "Tugagan", bg: "bg-gray-50", text: "text-gray-500" },
+}
 
 export default function Home() {
   const navigate = useNavigate()
+  const { open: openDrawer } = useDrawer()
   const [classes, setClasses] = useState<any[]>([])
   const [studentName, setStudentName] = useState("")
   const [groupName, setGroupName] = useState("")
+  const [groupStart, setGroupStart] = useState("")
   const [stats, setStats] = useState<any>(null)
+  const [selectedDay, setSelectedDay] = useState(new Date().getDate())
+  const [calMonth, setCalMonth] = useState(new Date().getMonth())
+  const [calYear, setCalYear] = useState(new Date().getFullYear())
+  const [lessonDates, setLessonDates] = useState<string[]>([])
+  const [attendanceMap, setAttendanceMap] = useState<Record<string, string>>({})
+  const [schedule, setSchedule] = useState<Record<string, ScheduleDay>>({})
 
   useEffect(() => {
     api.profile().then((res) => {
       setStudentName(res.student.first_name || "O'quvchi")
       if (res.groups.length > 0) {
         setGroupName(res.groups[0].name || "")
+        setGroupStart(res.groups[0].start_date || "")
       }
     }).catch(() => {})
     api.todayClasses().then((res) => {
       setClasses(res.classes)
     }).catch(() => {})
     api.attendanceHistory().then(setStats).catch(() => {})
+    api.schedule().then((res) => {
+      setSchedule(res.schedule)
+    }).catch(() => {})
   }, [])
 
+  useEffect(() => {
+    api.monthlyCalendar(calYear, calMonth + 1).then((res) => {
+      setLessonDates(res.lesson_dates || [])
+      setAttendanceMap(res.attendance_map || {})
+    }).catch(() => {})
+  }, [calYear, calMonth])
+
   const now = new Date()
+  const today = now.getDate()
   const hour = now.getHours()
   const greeting = hour < 12 ? "Xayrli tong" : hour < 18 ? "Xayrli kun" : "Xayrli kech"
 
   const todayClasses = classes || []
   const nextClass = todayClasses.length > 0 ? todayClasses[0] : null
-  const upcomingClass = todayClasses.length > 1 ? todayClasses[1] : null
-
-  const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
-    upcoming: { label: "Kutilmoqda", bg: "bg-blue-50", text: "text-blue-600" },
-    ongoing: { label: "Davom etmoqda", bg: "bg-green-50", text: "text-green-600" },
-    finished: { label: "Tugagan", bg: "bg-gray-50", text: "text-gray-500" },
-  }
 
   const initials = studentName ? studentName.charAt(0).toUpperCase() : "O"
 
+  const calendarDays = useMemo(() => getCalendarDays(calYear, calMonth), [calYear, calMonth])
+
+  const prevMonth = () => {
+    if (calMonth === 0) {
+      setCalMonth(11)
+      setCalYear((y) => y - 1)
+    } else {
+      setCalMonth((m) => m - 1)
+    }
+    setSelectedDay(0)
+  }
+
+  const nextMonth = () => {
+    if (calMonth === 11) {
+      setCalMonth(0)
+      setCalYear((y) => y + 1)
+    } else {
+      setCalMonth((m) => m + 1)
+    }
+    setSelectedDay(0)
+  }
+
+  const isLessonDay = (day: number) => {
+    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    return lessonDates.includes(dateStr)
+  }
+
+  const getAttendanceForDay = (day: number) => {
+    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    return attendanceMap[dateStr] || null
+  }
+
+  const isCurrentMonth = calMonth === now.getMonth() && calYear === now.getFullYear()
+
   return (
-    <div className="min-h-screen bg-[#F7F9FC] pb-24">
-      {/* Gradient Header */}
-      <div className="gradient-header rounded-b-[35px] px-6 pt-14 pb-8 shadow-lg shadow-[#2001FF]/10">
-        <div className="flex items-center justify-between max-w-lg mx-auto">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-white/30 shadow-lg">
-              <span className="text-lg font-bold text-white">{initials}</span>
+    <div className="min-h-screen bg-[#F8F9FC] pb-24 animate-page-enter">
+      <div className="max-w-lg mx-auto px-4 pt-12">
+        <header className="flex items-center justify-between mb-5">
+          <button
+            onClick={openDrawer}
+            className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm btn-hover"
+          >
+            <Menu size={20} className="text-gray-700" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-[#2001FF] rounded-xl flex items-center justify-center">
+              <HomeIcon size={16} className="text-white" />
             </div>
-            <div>
-              <p className="text-white/70 text-xs font-medium">{greeting}</p>
-              <p className="text-white font-bold text-base leading-tight">{studentName || "O'quvchi"}</p>
-              {groupName && (
-                <p className="text-white/60 text-xs font-medium mt-0.5">{groupName}</p>
-              )}
-            </div>
+            <h1 className="text-lg font-bold text-gray-900">Bosh sahifa</h1>
           </div>
-          <div className="relative">
-            <button className="w-10 h-10 bg-white/15 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/25 transition-all btn-scale">
-              <Bell size={20} className="text-white" />
-            </button>
-            <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-[#FF8A00] rounded-full border-2 border-[#2001FF] flex items-center justify-center">
+          <button className="relative w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm btn-hover">
+            <Bell size={20} className="text-gray-600" />
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#2001FF] rounded-full flex items-center justify-center animate-badge-pulse">
               <span className="text-[8px] font-bold text-white">3</span>
             </span>
-          </div>
-        </div>
-      </div>
+          </button>
+        </header>
 
-      <div className="max-w-lg mx-auto px-4 -mt-4 space-y-4">
-        {/* Attendance Card */}
-        <div className="bg-white rounded-[22px] p-5 card-shadow card-shadow-hover animate-scale-in">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Davomat</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.percentage || 0}%</p>
-              <p className="text-xs text-gray-400 font-medium mt-0.5">Shu oy</p>
-            </div>
-            <div className="relative w-24 h-24">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="42" fill="none" stroke="#F3F4F6" strokeWidth="8" />
-                <circle
-                  cx="50" cy="50" r="42" fill="none"
-                  stroke="#10B981" strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeDasharray={`${(stats?.percentage || 0) / 100 * 263.9} 263.9`}
-                  className="transition-all duration-1000"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <TrendingUp size={24} className="text-green-500" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Today's & Next Lesson */}
-        <div className="grid grid-cols-2 gap-3">
-          {nextClass ? (
-            <div className="bg-white rounded-[22px] p-4 card-shadow card-shadow-hover animate-fade-in">
-              <div className="flex items-center gap-1.5 mb-3">
-                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Bugungi dars</span>
-              </div>
-              <div className="p-2.5 bg-blue-50 rounded-xl w-fit mb-2">
-                <BookOpen size={18} className="text-blue-600" />
-              </div>
-              <p className="text-sm font-bold text-gray-900">{nextClass.subject}</p>
-              <p className="text-xs text-gray-500 font-medium mt-0.5 flex items-center gap-1">
-                <Clock size={11} />
-                {nextClass.start_time} - {nextClass.end_time}
-              </p>
-              {nextClass.room && (
-                <p className="text-xs text-gray-400 font-medium mt-0.5 flex items-center gap-1">
-                  <MapPin size={11} />
-                  {nextClass.room}-xona
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="bg-white rounded-[22px] p-4 card-shadow animate-fade-in">
-              <div className="flex items-center gap-1.5 mb-3">
-                <div className="w-1.5 h-1.5 bg-gray-300 rounded-full" />
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Bugun</span>
-              </div>
-              <div className="p-2.5 bg-gray-50 rounded-xl w-fit mb-2">
-                <Calendar size={18} className="text-gray-400" />
-              </div>
-              <p className="text-sm font-bold text-gray-900">Dars yo'q</p>
-              <p className="text-xs text-gray-400 font-medium mt-0.5">Dam oling</p>
-            </div>
-          )}
-
-          {upcomingClass ? (
-            <div className="bg-white rounded-[22px] p-4 card-shadow card-shadow-hover animate-fade-in">
-              <div className="flex items-center gap-1.5 mb-3">
-                <div className="w-1.5 h-1.5 bg-orange-400 rounded-full" />
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Keyingi</span>
-              </div>
-              <div className="p-2.5 bg-orange-50 rounded-xl w-fit mb-2">
-                <BookOpen size={18} className="text-orange-500" />
-              </div>
-              <p className="text-sm font-bold text-gray-900">{upcomingClass.subject}</p>
-              <p className="text-xs text-gray-500 font-medium mt-0.5 flex items-center gap-1">
-                <Clock size={11} />
-                {upcomingClass.start_time} - {upcomingClass.end_time}
-              </p>
-              {upcomingClass.room && (
-                <p className="text-xs text-gray-400 font-medium mt-0.5 flex items-center gap-1">
-                  <MapPin size={11} />
-                  {upcomingClass.room}-xona
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="bg-white rounded-[22px] p-4 card-shadow animate-fade-in">
-              <div className="flex items-center gap-1.5 mb-3">
-                <div className="w-1.5 h-1.5 bg-gray-300 rounded-full" />
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Keyingi</span>
-              </div>
-              <div className="p-2.5 bg-gray-50 rounded-xl w-fit mb-2">
-                <Calendar size={18} className="text-gray-400" />
-              </div>
-              <p className="text-sm font-bold text-gray-900">Dars yo'q</p>
-              <p className="text-xs text-gray-400 font-medium mt-0.5">Rejalashtirilmagan</p>
-            </div>
-          )}
-        </div>
-
-        {/* Statistics */}
-        <div className="animate-fade-in">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-bold text-gray-900">Statistika</p>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            <div className="bg-white rounded-[18px] p-3 text-center card-shadow">
-              <div className="w-8 h-8 bg-green-50 rounded-xl flex items-center justify-center mx-auto mb-1.5">
-                <CheckCircle2 size={16} className="text-green-600" />
-              </div>
-              <p className="text-lg font-bold text-gray-900">{stats?.present || 0}</p>
-              <p className="text-[9px] text-gray-400 font-medium">Kelgan</p>
-            </div>
-            <div className="bg-white rounded-[18px] p-3 text-center card-shadow">
-              <div className="w-8 h-8 bg-red-50 rounded-xl flex items-center justify-center mx-auto mb-1.5">
-                <XCircle size={16} className="text-red-500" />
-              </div>
-              <p className="text-lg font-bold text-gray-900">{stats?.absent || 0}</p>
-              <p className="text-[9px] text-gray-400 font-medium">Kelmagan</p>
-            </div>
-            <div className="bg-white rounded-[18px] p-3 text-center card-shadow">
-              <div className="w-8 h-8 bg-yellow-50 rounded-xl flex items-center justify-center mx-auto mb-1.5">
-                <AlertCircle size={16} className="text-yellow-500" />
-              </div>
-              <p className="text-lg font-bold text-gray-900">{stats?.excused || 0}</p>
-              <p className="text-[9px] text-gray-400 font-medium">Kechikkan</p>
-            </div>
-            <div className="bg-white rounded-[18px] p-3 text-center card-shadow">
-              <div className="w-8 h-8 bg-[#2001FF]/10 rounded-xl flex items-center justify-center mx-auto mb-1.5">
-                <BookOpen size={16} className="text-[#2001FF]" />
-              </div>
-              <p className="text-lg font-bold text-gray-900">{stats?.total || 0}</p>
-              <p className="text-[9px] text-gray-400 font-medium">Jami</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Payment Status */}
-        <div className="bg-white rounded-[22px] p-4 card-shadow card-shadow-hover animate-fade-in">
+        <section className="mb-3 animate-scale-in">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-                <CreditCard size={20} className="text-green-600" />
+              <div className="w-12 h-12 bg-[#2001FF] rounded-2xl flex items-center justify-center shadow-lg shadow-[#2001FF]/20">
+                <span className="text-lg font-bold text-white">{initials}</span>
               </div>
               <div>
-                <p className="text-xs font-semibold text-gray-400">To'lov holati</p>
-                <p className="text-sm font-bold text-green-600">To'langan</p>
+                <p className="text-xs font-medium text-gray-400">{greeting}</p>
+                <p className="text-base font-bold text-gray-900 leading-tight">{studentName || "O'quvchi"}</p>
+                {groupName && (
+                  <p className="text-xs font-medium text-gray-400 mt-0.5">{groupName}</p>
+                )}
               </div>
             </div>
-            <div className="px-3 py-1 bg-green-50 rounded-xl">
-              <span className="text-xs font-bold text-green-600">✔</span>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-gray-900">{stats?.percentage || 0}%</p>
+              <p className="text-xs font-medium text-gray-400">Davomat</p>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Homework */}
-        <div className="bg-white rounded-[22px] p-4 card-shadow card-shadow-hover animate-fade-in">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 bg-orange-50 rounded-xl flex items-center justify-center">
-                <BookOpen size={18} className="text-orange-500" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-gray-900">Uy vazifalari</p>
-                <p className="text-[10px] text-gray-400 font-medium">3 ta topshiriq</p>
-              </div>
-            </div>
-            <button className="text-xs font-semibold text-[#2001FF] hover:underline" onClick={() => navigate("/homework")}>
-              Barchasi
+        <section className="mb-4">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <button onClick={prevMonth} className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm btn-hover">
+              <ChevronLeft size={16} className="text-gray-500" />
+            </button>
+            <h2 className="text-base font-bold text-gray-900">
+              {MONTHS_UZ[calMonth]} {calYear}
+            </h2>
+            <button onClick={nextMonth} className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm btn-hover">
+              <ChevronRight size={16} className="text-gray-500" />
             </button>
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between py-2 border-b border-gray-50">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full" />
-                <span className="text-xs font-medium text-gray-700">Matematika</span>
-              </div>
-              <span className="text-[10px] font-semibold text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-lg">Kutilmoqda</span>
+
+          <div className="card-calendar p-3">
+            <div className="grid grid-cols-7 mb-1">
+              {DAYS_UZ.map((d) => (
+                <div key={d} className="text-center py-1.5">
+                  <span className="text-[11px] font-semibold text-gray-400">{d}</span>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-50">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                <span className="text-xs font-medium text-gray-700">Ingliz tili</span>
-              </div>
-              <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">Topshirilgan</span>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-                <span className="text-xs font-medium text-gray-700">Fizika</span>
-              </div>
-              <span className="text-[10px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-lg">Kechikkan</span>
+            <div className="grid grid-cols-7">
+              {calendarDays.map((day, idx) => {
+                if (day === null) return <div key={`e-${idx}`} />
+                const isToday = isCurrentMonth && day === today
+                const isSelected = day === selectedDay
+                    const selDate = new Date(calYear, calMonth, day)
+                    const dayKey = weekdayMap[selDate.getDay()]
+                    const hasLesson = isLessonDay(day) && (schedule[dayKey]?.lessons?.length || 0) > 0
+                    const att = getAttendanceForDay(day)
+
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => setSelectedDay(day)}
+                        className="relative flex flex-col items-center justify-center py-1.5 rounded-xl transition-all btn-hover"
+                      >
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-semibold transition-all duration-200 ${
+                            isSelected
+                              ? "bg-[#2001FF] text-white shadow-md shadow-[#2001FF]/20"
+                              : isToday
+                                ? "text-[#2001FF]"
+                                : "text-gray-700"
+                          }`}
+                        >
+                          {day}
+                        </div>
+                        <div className="flex items-center gap-0.5 mt-0.5 h-2">
+                          {hasLesson && (
+                            <div className={`w-2 h-2 rounded-full ${
+                              att === "present" ? "bg-green-500" :
+                              att === "absent" ? "bg-red-500" :
+                              att === "excused" ? "bg-yellow-500" :
+                              "bg-gray-300"
+                            }`} />
+                          )}
+                        </div>
+                      </button>
+                )
+              })}
             </div>
           </div>
-        </div>
 
-        {/* Teacher Info */}
-        {todayClasses.length > 0 && (
-          <div className="bg-white rounded-[22px] p-4 card-shadow card-shadow-hover animate-fade-in">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-                  <User size={20} className="text-indigo-500" />
+          {selectedDay > 0 && (() => {
+            const ds = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`
+            const att = attendanceMap[ds]
+            const isTodaySel = isCurrentMonth && selectedDay === today
+            const selDate = new Date(calYear, calMonth, selectedDay)
+            const dayKey = weekdayMap[selDate.getDay()]
+            const scheduleLessons = schedule[dayKey]?.lessons || []
+            const hasLesson = lessonDates.includes(ds) && scheduleLessons.length > 0
+            const afterStart = !groupStart || ds >= groupStart
+
+            if (hasLesson && afterStart) {
+              const dayClasses = isTodaySel ? todayClasses : scheduleLessons
+              return (
+                <div className="mt-3 space-y-3 animate-scale-in">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-gray-900">
+                      {selectedDay} {MONTHS_UZ[calMonth]} - Darslar
+                    </h3>
+                    {att && (
+                      <span className={`text-[11px] font-bold px-3 py-1.5 rounded-xl ${
+                        att === "present" ? "bg-green-50 text-green-700" :
+                        att === "absent" ? "bg-red-50 text-red-600" :
+                        "bg-yellow-50 text-yellow-700"
+                      }`}>
+                        {att === "present" ? "Bor" :
+                         att === "absent" ? "Yo'q" : "Kechikkan"}
+                      </span>
+                    )}
+                  </div>
+                  {dayClasses.map((cls: any, idx: number) => (
+                    <div key={cls.id || cls.group_id || idx} className="card-premium p-5">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-[#2001FF]/10 rounded-2xl flex items-center justify-center">
+                            <BookOpen size={22} className="text-[#2001FF]" />
+                          </div>
+                          <div>
+                            <p className="text-base font-bold text-gray-900">{cls.subject}</p>
+                            <p className="text-xs font-medium text-gray-400 mt-0.5">{cls.group_name}</p>
+                          </div>
+                        </div>
+                        {cls.status && (
+                          <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg ${
+                            (statusConfig[cls.status]?.bg || "bg-gray-50") + " " + (statusConfig[cls.status]?.text || "text-gray-500")
+                          }`}>
+                            {statusConfig[cls.status]?.label || cls.status}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-3.5 py-3">
+                          <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                            <Clock size={15} className="text-[#2001FF]" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Vaqt</p>
+                            <p className="text-sm font-bold text-gray-900">{cls.start_time} - {cls.end_time}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-3.5 py-3">
+                          <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                            <MapPin size={15} className="text-[#2001FF]" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Xona</p>
+                            <p className="text-sm font-bold text-gray-900">{cls.room || "Aniqlanmagan"}-xona</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center">
+                            <span className="text-xs font-bold text-gray-500">
+                              {cls.teacher ? cls.teacher.charAt(0).toUpperCase() : "O'"}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-gray-400">O'qituvchi</p>
+                            <p className="text-sm font-bold text-gray-900">{cls.teacher || "O'qituvchi"}</p>
+                          </div>
+                        </div>
+                        {cls.attendance_status && (
+                          <div className={`px-3 py-1.5 rounded-xl text-[11px] font-bold ${
+                            cls.attendance_status === "present" ? "bg-green-50 text-green-700" :
+                            cls.attendance_status === "absent" ? "bg-red-50 text-red-600" :
+                            "bg-yellow-50 text-yellow-700"
+                          }`}>
+                            {cls.attendance_status === "present" ? "Bor" :
+                             cls.attendance_status === "absent" ? "Yo'q" : "Kechikkan"}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-gray-900">{todayClasses[0].teacher || "O'qituvchi"}</p>
-                  <p className="text-[10px] text-gray-400 font-medium">
-                    Bugungi dars: {todayClasses[0].subject}
-                  </p>
-                </div>
+              )
+            }
+
+            return (
+              <div className="mt-3 card-premium p-5 animate-scale-in">
+                <p className="text-sm font-semibold text-gray-400 text-center">
+                  {selectedDay} {MONTHS_UZ[calMonth]} - Bu kunda dars yo'q edi
+                </p>
               </div>
-              <ChevronRight size={16} className="text-gray-300" />
-            </div>
-          </div>
-        )}
+            )
+          })()}
+        </section>
 
-        {/* All classes today */}
-        {todayClasses.length > 0 && (
-          <div className="bg-white rounded-[22px] p-4 card-shadow animate-fade-in">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold text-gray-900">Bugungi barcha darslar</p>
-              <span className="text-[10px] text-gray-400 font-medium bg-gray-50 px-2 py-0.5 rounded-lg">{todayClasses.length} ta</span>
-            </div>
-            <div className="space-y-2">
-              {todayClasses.map((cls: any, idx: number) => {
+        {todayClasses.length > 1 && (
+          <section className="mb-4 animate-scale-in stagger-2">
+            <h2 className="text-sm font-bold text-gray-900 mb-3">Barcha darslar</h2>
+            <div className="space-y-2.5">
+              {todayClasses.slice(1).map((cls: any, idx: number) => {
                 const sc = statusConfig[cls.status]
                 return (
                   <div
                     key={cls.id || idx}
                     onClick={() => navigate(`/lesson/${cls.group_id}`)}
-                    className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-gray-50 transition-all cursor-pointer btn-scale"
+                    className="card-premium-sm p-4 flex items-center justify-between btn-hover cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
-                        <Clock size={14} className="text-gray-400" />
+                      <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center">
+                        <BookOpen size={18} className="text-gray-500" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-gray-900">{cls.subject}</p>
-                        <p className="text-[10px] text-gray-400 font-medium">{cls.start_time} - {cls.end_time}</p>
+                        <p className="text-sm font-bold text-gray-900">{cls.subject}</p>
+                        <p className="text-[11px] font-medium text-gray-400 mt-0.5">
+                          {cls.start_time} - {cls.end_time} | {cls.room}-xona
+                        </p>
                       </div>
                     </div>
                     {sc && (
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg ${sc.bg} ${sc.text}`}>
+                      <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg shrink-0 ${sc.bg} ${sc.text}`}>
                         {sc.label}
                       </span>
                     )}
@@ -321,9 +372,39 @@ export default function Home() {
                 )
               })}
             </div>
-          </div>
+          </section>
         )}
+
+        <section className="mb-4 animate-scale-in stagger-3">
+          <button
+            onClick={() => navigate("/homework")}
+            className="card-premium p-4 w-full flex items-center justify-between btn-hover"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-[#2001FF]/10 rounded-2xl flex items-center justify-center">
+                <BookOpen size={22} className="text-[#2001FF]" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-bold text-gray-900">Uy vazifalari</p>
+                <p className="text-xs font-medium text-gray-400 mt-0.5">3 ta topshiriq</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex -space-x-1.5">
+                <div className="w-6 h-6 bg-yellow-400 rounded-full border-2 border-white" />
+                <div className="w-6 h-6 bg-green-400 rounded-full border-2 border-white" />
+                <div className="w-6 h-6 bg-red-400 rounded-full border-2 border-white" />
+              </div>
+              <ChevronRight size={18} className="text-gray-300" />
+            </div>
+          </button>
+        </section>
+
       </div>
+
+      <button className="fixed bottom-24 right-5 w-14 h-14 bg-[#2001FF] rounded-full flex items-center justify-center shadow-xl shadow-[#2001FF]/30 animate-float btn-hover z-40">
+        <span className="text-2xl font-bold text-white leading-none">+</span>
+      </button>
     </div>
   )
 }

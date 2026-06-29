@@ -86,13 +86,6 @@ urlpatterns = [
     path("absence-reasons/create/", views.absence_reason_create, name="absence_reason_create"),
     path("absence-reasons/<int:pk>/update/", views.absence_reason_update, name="absence_reason_update"),
     path("absence-reasons/<int:pk>/delete/", views.absence_reason_delete, name="absence_reason_delete"),
-    # Student Web
-    path("student/login/", views.student_web_login, name="student_web_login"),
-    path("student/logout/", views.student_web_logout, name="student_web_logout"),
-    path("student/dashboard/", views.student_dashboard, name="student_dashboard"),
-    path("student/profile/", views.student_profile, name="student_profile"),
-    path("student/schedule/", views.student_schedule, name="student_schedule"),
-    path("student/attendance/", views.student_attendance, name="student_attendance"),
     # Student API
     path("api/telegram-webhook/", student_api.telegram_webhook, name="telegram_webhook"),
     path("api/student/send-code/", student_api.send_code, name="student_send_code"),

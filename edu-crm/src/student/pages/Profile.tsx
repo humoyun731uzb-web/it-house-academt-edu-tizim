@@ -1,14 +1,39 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import {
-  User, Phone, BookOpen, ChevronRight, LogOut, Shield, Star,
-  CalendarDays, ChevronLeft,
+  User, ChevronRight, Copy, Menu, Building2, CreditCard,
+  Award, Settings, MessageCircle, Heart, Share2,
 } from "lucide-react"
 import { api } from "../api"
+import { useDrawer } from "../context/DrawerContext"
 import type { StudentProfile, GroupInfo } from "../types"
+
+const menuSections = [
+  {
+    items: [
+      { icon: Building2, label: "Filial", color: "text-[#2001FF]", bg: "bg-[#2001FF]/10" },
+      { icon: CreditCard, label: "To'lovlar", color: "text-green-600", bg: "bg-green-50" },
+      { icon: Award, label: "Sertifikatlar", color: "text-yellow-600", bg: "bg-yellow-50" },
+    ],
+  },
+  {
+    items: [
+      { icon: Copy, label: "User ID nusxalash", color: "text-gray-600", bg: "bg-gray-50" },
+      { icon: Copy, label: "Branch ID nusxalash", color: "text-gray-600", bg: "bg-gray-50" },
+    ],
+  },
+  {
+    items: [
+      { icon: Settings, label: "Sozlamalar", color: "text-gray-700", bg: "bg-gray-50" },
+      { icon: MessageCircle, label: "Takliflar", color: "text-indigo-500", bg: "bg-indigo-50" },
+      { icon: Heart, label: "Do'stni taklif qilish", color: "text-rose-500", bg: "bg-rose-50" },
+    ],
+  },
+]
 
 export default function Profile() {
   const navigate = useNavigate()
+  const { open: openDrawer } = useDrawer()
   const [student, setStudent] = useState<StudentProfile | null>(null)
   const [groups, setGroups] = useState<GroupInfo[]>([])
 
@@ -19,14 +44,13 @@ export default function Profile() {
     }).catch(() => {})
   }, [])
 
-  const handleLogout = () => {
-    localStorage.removeItem("student_token")
-    navigate("/")
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text).catch(() => {})
   }
 
   if (!student) {
     return (
-      <div className="min-h-screen bg-[#F7F9FC] pb-24 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F8F9FC] pb-24 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[#2001FF]/30 border-t-[#2001FF] rounded-full animate-spin" />
       </div>
     )
@@ -34,150 +58,101 @@ export default function Profile() {
 
   const initials = (student.first_name?.charAt(0) || "") + (student.last_name?.charAt(0) || "")
 
-  const menuItems = [
-    { icon: Shield, label: "Parolni o'zgartirish", color: "text-[#2001FF]", bg: "bg-[#2001FF]/10" },
-    { icon: Star, label: "Baholarim", color: "text-yellow-500", bg: "bg-yellow-50" },
-    { icon: CalendarDays, label: "Davomat tarixi", color: "text-green-500", bg: "bg-green-50", path: "/attendance-history" },
-  ]
-
   return (
-    <div className="min-h-screen bg-[#F7F9FC] pb-24 page-enter">
-      <div className="max-w-lg mx-auto px-4 pt-14">
-        <button
-          onClick={() => navigate("/home")}
-          className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 mb-5 transition-all font-medium"
-        >
-          <ChevronLeft size={18} />
-          Home
-        </button>
+    <div className="min-h-screen bg-[#F8F9FC] pb-24 animate-page-enter">
+      <div className="max-w-lg mx-auto px-4 pt-12">
+        <header className="flex items-center justify-between mb-5">
+          <button
+            onClick={openDrawer}
+            className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm btn-hover"
+          >
+            <Menu size={20} className="text-gray-700" />
+          </button>
+          <h1 className="text-lg font-bold text-gray-900">Profil</h1>
+          <div className="w-10 h-10" />
+        </header>
 
-        {/* Profile Header */}
-        <div className="bg-white rounded-[22px] p-6 text-center mb-4 card-shadow animate-scale-in">
-          <div className="relative inline-block mb-3">
-            <div className="w-24 h-24 bg-gradient-to-br from-[#2001FF] to-[#4361FF] rounded-full flex items-center justify-center mx-auto shadow-xl shadow-[#2001FF]/20">
-              <span className="text-3xl font-bold text-white">{initials || "O"}</span>
+        <section className="mb-5 animate-scale-in">
+          <div className="card-premium p-5">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="w-20 h-20 bg-gradient-to-br from-[#2001FF] to-[#4361FF] rounded-[20px] flex items-center justify-center shadow-lg shadow-[#2001FF]/20">
+                  <span className="text-2xl font-bold text-white">{initials || "O"}</span>
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 border-2 border-white rounded-full" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-bold text-gray-900">
+                  {student.first_name} {student.last_name}
+                </h2>
+                <p className="text-sm font-medium text-gray-400 mt-0.5">{student.phone}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="px-2.5 py-1 bg-[#2001FF]/10 rounded-lg">
+                    <span className="text-[11px] font-bold text-[#2001FF]">450 000 so'm</span>
+                  </div>
+                  <span className="text-[11px] font-medium text-gray-400">Balans</span>
+                </div>
+              </div>
+              <ChevronRight size={20} className="text-gray-300" />
             </div>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 border-2 border-white rounded-full flex items-center justify-center shadow-md">
-              <div className="w-2 h-2 bg-white rounded-full" />
+          </div>
+        </section>
+
+        {menuSections.map((section, secIdx) => (
+          <section key={secIdx} className="mb-4 animate-scale-in" style={{ animationDelay: `${(secIdx + 1) * 80}ms` }}>
+            <div className="card-premium divide-y divide-gray-50 overflow-hidden">
+              {section.items.map((item, idx) => (
+                <button
+                  key={idx}
+                  className="w-full flex items-center justify-between px-5 py-4 btn-hover hover:bg-gray-50/50 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-2xl ${item.bg} flex items-center justify-center`}>
+                      <item.icon size={18} className={item.color} />
+                    </div>
+                    <span className="text-sm font-semibold text-gray-700">{item.label}</span>
+                  </div>
+                  {item.label.includes("nusxalash") ? (
+                    <Copy size={14} className="text-gray-300" />
+                  ) : (
+                    <ChevronRight size={16} className="text-gray-300" />
+                  )}
+                </button>
+              ))}
             </div>
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 tracking-tight">
-            {student.first_name} {student.last_name}
-          </h2>
-          <div className="flex items-center justify-center gap-1.5 text-sm text-gray-500 mt-1.5 font-medium">
-            <Phone size={14} />
-            {student.phone}
-          </div>
-        </div>
+          </section>
+        ))}
 
-        {/* Personal Info */}
-        <div className="bg-white rounded-[22px] p-5 card-shadow mb-4 animate-fade-in">
-          <h3 className="text-sm font-bold text-gray-900 mb-4">Shaxsiy ma'lumotlar</h3>
-          <div className="space-y-3">
-            {student.birth_date && (
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-[16px]">
-                <div className="p-2 bg-orange-50 rounded-xl">
-                  <CalendarDays size={16} className="text-orange-500" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tug'ilgan sana</p>
-                  <p className="text-sm font-bold text-gray-900 mt-0.5">{student.birth_date}</p>
-                </div>
-              </div>
-            )}
-            {student.father_full_name && (
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-[16px]">
-                <div className="p-2 bg-blue-50 rounded-xl">
-                  <User size={16} className="text-blue-500" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Ota</p>
-                  <p className="text-sm font-bold text-gray-900 mt-0.5">{student.father_full_name}</p>
-                </div>
-                {student.father_phone && (
-                  <span className="text-xs font-medium text-gray-400">{student.father_phone}</span>
-                )}
-              </div>
-            )}
-            {student.mother_full_name && (
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-[16px]">
-                <div className="p-2 bg-pink-50 rounded-xl">
-                  <User size={16} className="text-pink-500" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Ona</p>
-                  <p className="text-sm font-bold text-gray-900 mt-0.5">{student.mother_full_name}</p>
-                </div>
-                {student.mother_phone && (
-                  <span className="text-xs font-medium text-gray-400">{student.mother_phone}</span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Groups */}
         {groups.length > 0 && (
-          <div className="bg-white rounded-[22px] p-5 card-shadow mb-4 animate-fade-in">
-            <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-              <BookOpen size={16} className="text-[#2001FF]" />
-              Mening guruhlarim
-            </h3>
-            <div className="space-y-2">
+          <section className="mb-5 animate-scale-in stagger-6">
+            <h3 className="text-sm font-bold text-gray-900 mb-3">Guruhlarim</h3>
+            <div className="space-y-2.5">
               {groups.map((g, idx) => {
                 const colors = [
-                  "from-blue-400 to-blue-500",
-                  "from-indigo-400 to-indigo-500",
-                  "from-violet-400 to-violet-500",
+                  "from-[#2001FF] to-[#4361FF]",
                   "from-emerald-400 to-emerald-500",
+                  "from-violet-400 to-violet-500",
+                  "from-amber-400 to-amber-500",
                 ]
                 return (
-                  <div key={g.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-[16px]">
-                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colors[idx % colors.length]} flex items-center justify-center shrink-0 shadow-sm`}>
-                      <span className="text-sm font-bold text-white">{g.name.charAt(0)}</span>
+                  <div key={g.id} className="card-premium-sm p-4 flex items-center gap-3">
+                    <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${colors[idx % colors.length]} flex items-center justify-center shrink-0 shadow-sm`}>
+                      <span className="text-base font-bold text-white">{g.name.charAt(0)}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-gray-900">{g.name}</p>
-                      <p className="text-[11px] font-medium text-gray-400">{g.course}</p>
+                      <p className="text-[11px] font-medium text-gray-400 mt-0.5">{g.course}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[11px] font-medium text-gray-500">{g.teacher}</p>
+                      <p className="text-[11px] font-semibold text-gray-500">{g.teacher}</p>
                       <p className="text-[11px] font-medium text-gray-400">{g.room}</p>
                     </div>
                   </div>
                 )
               })}
             </div>
-          </div>
+          </section>
         )}
-
-        {/* Menu */}
-        <div className="bg-white rounded-[22px] card-shadow divide-y divide-gray-50 mb-4 animate-fade-in">
-          {menuItems.map((item, idx) => (
-            <button
-              key={idx}
-              onClick={() => item.path && navigate(item.path)}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50/50 transition-all btn-scale"
-            >
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl ${item.bg}`}>
-                  <item.icon size={18} className={item.color} />
-                </div>
-                <span className="text-sm font-semibold text-gray-700">{item.label}</span>
-              </div>
-              <ChevronRight size={16} className="text-gray-300" />
-            </button>
-          ))}
-        </div>
-
-        {/* Logout */}
-        <button
-          onClick={handleLogout}
-          className="w-full h-[52px] bg-white border-2 border-red-100 text-red-500 rounded-[18px] font-semibold text-sm hover:bg-red-50 transition-all flex items-center justify-center gap-2 btn-scale"
-        >
-          <LogOut size={16} />
-          Chiqish
-        </button>
       </div>
     </div>
   )
