@@ -495,8 +495,8 @@ def teacher_attendance_desktop(request, pk):
     month_start = date(sel_year, sel_month, 1)
     month_end = date(sel_year, sel_month, last_day)
 
-    group_created = group.created_at.date() if group.created_at else month_start
-    lesson_start = max(month_start, group_created)
+    group_start = group.start_date if group.start_date else month_start
+    lesson_start = max(month_start, group_start)
 
     lesson_dates = []
     d = lesson_start
