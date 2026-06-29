@@ -72,10 +72,7 @@ urlpatterns = [
     path("rooms/create/", views.room_create, name="room_create"),
     path("rooms/<int:pk>/update/", views.room_update, name="room_update"),
     path("rooms/<int:pk>/delete/", views.room_delete, name="room_delete"),
-    path("roles/", views.role_list, name="role_list"),
-    path("roles/create/", views.role_create, name="role_create"),
-    path("roles/<int:pk>/update/", views.role_update, name="role_update"),
-    path("roles/<int:pk>/delete/", views.role_delete, name="role_delete"),
+
     path("statistics/", views.statistics, name="statistics"),
     path("surveys/", views.survey_list, name="survey_list"),
     path("surveys/create/", views.survey_create, name="survey_create"),

@@ -9,7 +9,7 @@ from django.utils import timezone
 from datetime import date, timedelta
 import calendar
 from .models import Course, Group, Student, MarketingSurvey, StudentLog, LessonTime, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason
-from .forms import LoginForm, CourseForm, GroupForm, StudentCreateForm, StudentEditForm, MarketingSurveyForm, FreezeForm, RemoveFromGroupForm, AddToGroupForm, LessonTimeForm, BranchForm, RoomForm, RoleForm, PositionForm, EmployeeForm
+from .forms import LoginForm, CourseForm, GroupForm, StudentCreateForm, StudentEditForm, MarketingSurveyForm, FreezeForm, RemoveFromGroupForm, AddToGroupForm, LessonTimeForm, BranchForm, RoomForm, PositionForm, EmployeeForm
 
 
 def login_view(request):
@@ -1832,47 +1832,6 @@ def room_delete(request, pk):
         messages.success(request, "Xona muvaffaqiyatli o'chirildi")
         return redirect("room_list")
     return render(request, "room/delete.html", {"object": room, "title": "Xonani o'chirish"})
-
-
-@login_required(login_url="login")
-def role_list(request):
-    roles = Role.objects.all().order_by("-created_at")
-    return render(request, "role/list.html", {"roles": roles})
-
-
-@login_required(login_url="login")
-def role_create(request):
-    form = RoleForm()
-    if request.method == "POST":
-        form = RoleForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Rol muvaffaqiyatli qo'shildi")
-            return redirect("role_list")
-    return render(request, "role/form.html", {"form": form, "title": "Rol qo'shish"})
-
-
-@login_required(login_url="login")
-def role_update(request, pk):
-    role = get_object_or_404(Role, pk=pk)
-    form = RoleForm(instance=role)
-    if request.method == "POST":
-        form = RoleForm(request.POST, instance=role)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Rol muvaffaqiyatli yangilandi")
-            return redirect("role_list")
-    return render(request, "role/form.html", {"form": form, "title": "Rolni tahrirlash"})
-
-
-@login_required(login_url="login")
-def role_delete(request, pk):
-    role = get_object_or_404(Role, pk=pk)
-    if request.method == "POST":
-        role.delete()
-        messages.success(request, "Rol muvaffaqiyatli o'chirildi")
-        return redirect("role_list")
-    return render(request, "role/delete.html", {"object": role, "title": "Rolni o'chirish"})
 
 
 @login_required(login_url="login")

@@ -253,8 +253,8 @@ export default function Home() {
                         att === "absent" ? "bg-red-50 text-red-600" :
                         "bg-yellow-50 text-yellow-700"
                       }`}>
-                        {att === "present" ? "Bor" :
-                         att === "absent" ? "Yo'q" : "Kechikkan"}
+                        {att === "present" ? "Darsga qatnashgan" :
+                         att === "absent" ? "Kelmagan" : "Sababli Kelmagan"}
                       </span>
                     )}
                   </div>

@@ -123,10 +123,6 @@
                     <i class="fas fa-door-open"></i>
                     <span>Xonalar</span>
                 </a>
-                <a href="{% url 'role_list' %}" class="nav-item {% if request.resolver_match.url_name == 'role_list' %}active{% endif %}">
-                    <i class="fas fa-user-tag"></i>
-                    <span>Rollar</span>
-                </a>
                 <a href="{% url 'position_list' %}" class="nav-item {% if request.resolver_match.url_name == 'position_list' %}active{% endif %}">
                     <i class="fas fa-tasks"></i>
                     <span>Vazifalar</span>

@@ -279,20 +279,6 @@ class RoomForm(forms.ModelForm):
         }
 
 
-class RoleForm(forms.ModelForm):
-    class Meta:
-        model = Role
-        fields = ["name", "level"]
-        widgets = {
-            "name": forms.TextInput(attrs={
-                "class": "form-control", "placeholder": "Rol nomini kiriting"
-            }),
-            "level": forms.TextInput(attrs={
-                "class": "form-control", "placeholder": "Masalan: superadmin, admin"
-            }),
-        }
-
-
 class PositionForm(forms.ModelForm):
     class Meta:
         model = Position
