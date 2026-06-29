@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
 import {
-  User, ChevronRight, Copy, Menu, Building2, CreditCard,
-  Award, Settings, MessageCircle, Heart, Share2,
+  ChevronRight, Copy, Menu, Building2, CreditCard,
+  Award, Settings, MessageCircle, Heart,
 } from "lucide-react"
 import { api } from "../api"
 import { useDrawer } from "../context/DrawerContext"
@@ -32,7 +31,6 @@ const menuSections = [
 ]
 
 export default function Profile() {
-  const navigate = useNavigate()
   const { open: openDrawer } = useDrawer()
   const [student, setStudent] = useState<StudentProfile | null>(null)
   const [groups, setGroups] = useState<GroupInfo[]>([])
@@ -43,10 +41,6 @@ export default function Profile() {
       setGroups(res.groups)
     }).catch(() => {})
   }, [])
-
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text).catch(() => {})
-  }
 
   if (!student) {
     return (

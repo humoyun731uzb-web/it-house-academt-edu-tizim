@@ -83,7 +83,6 @@ export default function Home() {
   const greeting = hour < 12 ? "Xayrli tong" : hour < 18 ? "Xayrli kun" : "Xayrli kech"
 
   const todayClasses = classes || []
-  const nextClass = todayClasses.length > 0 ? todayClasses[0] : null
 
   const initials = studentName ? studentName.charAt(0).toUpperCase() : "O"
 
