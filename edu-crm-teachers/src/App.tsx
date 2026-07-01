@@ -132,6 +132,7 @@ export default function App() {
       {page.name === "dashboard" && (
         <TeacherDashboard
           onSelectGroup={(id) => setPage({ name: "group-detail", groupId: id })}
+          onStartLesson={(id) => setPage({ name: "attendance-desktop", groupId: id })}
           onViewAllGroups={() => setPage({ name: "my-groups" })}
         />
       )}
