@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import {
-  ChevronRight, Menu, Wallet, TrendingUp, TrendingDown,
+  ChevronRight, Menu, Wallet, TrendingUp,
   Clock, BookOpen, Copy, Settings, MessageCircle, Heart,
 } from "lucide-react"
 import { api } from "../api"

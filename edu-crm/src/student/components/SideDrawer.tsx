@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Home, CalendarDays, BookOpen, Bell, MessageCircle, User,
-  ChevronRight, ChevronDown, Building2,
+  ChevronRight, ChevronDown, Building2, Wallet,
 } from "lucide-react"
 import { api } from "../api"
 import { useDrawer } from "../context/DrawerContext"
