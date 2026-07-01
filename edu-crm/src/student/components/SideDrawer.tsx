@@ -82,11 +82,21 @@ export default function SideDrawer() {
 
             <div className="bg-gray-50 rounded-2xl p-4 mb-6">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Balans</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">450 000 so'm</p>
-              <div className="flex items-center gap-1 mt-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full" />
-                <span className="text-xs font-medium text-green-600">Muddat: 15.07.2026</span>
-              </div>
+              {student?.balance_str ? (
+                <>
+                  <p className={`text-2xl font-bold mt-1 ${(student.balance ?? 0) >= 0 ? "text-gray-900" : "text-red-600"}`}>
+                    {student.balance_str}
+                  </p>
+                  <div className="flex items-center gap-1 mt-1">
+                    <Wallet size={14} className={(student.balance ?? 0) >= 0 ? "text-green-500" : "text-red-500"} />
+                    <span className={`text-xs font-medium ${(student.balance ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {(student.balance ?? 0) >= 0 ? "To'lov muddati o'tmagan" : "Qarzingiz mavjud"}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xl font-bold text-gray-400 mt-1">---</p>
+              )}
             </div>
           </div>
 

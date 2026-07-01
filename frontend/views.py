@@ -1,3 +1,4 @@
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import authenticate, login, logout
@@ -6,9 +7,10 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.db.models import Count, Q
 from django.utils import timezone
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone as dt_timezone
 import calendar
-from .models import Course, Group, Student, MarketingSurvey, StudentLog, LessonTime, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason
+from decimal import Decimal
+from .models import Course, Group, Student, MarketingSurvey, StudentLog, LessonTime, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig
 from .forms import LoginForm, CourseForm, GroupForm, StudentCreateForm, StudentEditForm, MarketingSurveyForm, FreezeForm, RemoveFromGroupForm, AddToGroupForm, LessonTimeForm, BranchForm, RoomForm, PositionForm, EmployeeForm
 
 
@@ -44,6 +46,165 @@ def login_view(request):
 def logout_view(request):
     logout(request)
     return redirect("login")
+
+
+# ===== BALANCE HELPERS =====
+
+def get_or_create_balance(student):
+    balance, _ = StudentBalance.objects.get_or_create(student=student, defaults={"balance": Decimal('0.00')})
+    return balance
+
+
+def get_student_lesson_price(student, group):
+    try:
+        slp = StudentLessonPrice.objects.get(student=student, group=group)
+        return slp.lesson_price
+    except StudentLessonPrice.DoesNotExist:
+        return group.lesson_price or Decimal('0.00')
+
+
+def add_balance_transaction(student, amount, transaction_type, group=None, attendance=None, description="", created_by=""):
+    balance = get_or_create_balance(student)
+    balance.balance += amount
+    balance.save()
+    Transaction.objects.create(
+        student=student,
+        amount=amount,
+        balance_after=balance.balance,
+        transaction_type=transaction_type,
+        group=group,
+        attendance=attendance,
+        description=description,
+        created_by=created_by,
+    )
+    return balance
+
+
+def should_deduct_for_status(status, group=None):
+    """Davomat holatiga qarab pul yechish kerakmi yoki yo'qmi"""
+    config = GlobalConfig.get_instance()
+    if status == "present":
+        return True
+    if status == "absent" and config.deduct_absent:
+        return True
+    if status == "excused" and config.deduct_excused:
+        return True
+    return False
+
+
+def sync_attendance_balance(student, group, attendance, new_status, created_by=""):
+    """
+    Davomat o'zgartirilganda balansni sinxronlashtiradi.
+    
+    Qoidalar:
+    - Qatnashdi (present) → balansdan yechiladi
+    - Sababli kelmadi (excused) → GlobalConfig.deduct_excused ga qarab
+    - Sababsiz kelmadi (absent) → GlobalConfig.deduct_absent ga qarab
+    - Belgilanmagan (none) → yechilmaydi
+    - Bir dars uchun faqat bir marta to'lov yechiladi
+    - Davomat tahrirlanganda avtomatik qayta hisoblanadi
+    """
+    price = get_student_lesson_price(student, group)
+
+    # Mavjud tranzaksiyalarni tekshirish
+    existing_charges = Transaction.objects.filter(
+        attendance=attendance,
+        transaction_type=Transaction.Type.LESSON,
+    )
+    total_charged = sum(t.amount for t in existing_charges)  # manfiy summa
+
+    existing_refunds = Transaction.objects.filter(
+        attendance=attendance,
+        transaction_type=Transaction.Type.CORRECTION,
+    )
+    total_refunded = sum(t.amount for t in existing_refunds)  # musbat summa
+
+    net_deducted = total_charged + total_refunded  # manfiy yoki 0
+
+    should_deduct_now = should_deduct_for_status(new_status, group)
+
+    if should_deduct_now and net_deducted == 0:
+        # Oldin yechilmagan, endi yechish kerak
+        add_balance_transaction(
+            student=student,
+            amount=-price,
+            transaction_type=Transaction.Type.LESSON,
+            group=group,
+            attendance=attendance,
+            description=f"{group.name} - {attendance.date} dars",
+            created_by=created_by,
+        )
+    elif not should_deduct_now and net_deducted < 0:
+        # Oldin yechilgan edi, endi qaytarish kerak
+        refund_amount = abs(net_deducted)
+        add_balance_transaction(
+            student=student,
+            amount=refund_amount,
+            transaction_type=Transaction.Type.CORRECTION,
+            group=group,
+            attendance=attendance,
+            description=f"{group.name} - {attendance.date} dars uchun yechilgan summa qaytarildi",
+            created_by=created_by,
+        )
+    # else: hech narsa qilish shart emas
+
+
+def process_payment(student, amount, description="", created_by=""):
+    """
+    To'lovni amalga oshiradi. Avval qarzni (minus balans) qoplaydi,
+    qolgan summa balansga qo'shiladi.
+    """
+    balance = get_or_create_balance(student)
+    balance.balance += amount
+    balance.save()
+    Transaction.objects.create(
+        student=student,
+        amount=amount,
+        balance_after=balance.balance,
+        transaction_type=Transaction.Type.PAYMENT,
+        description=description,
+        created_by=created_by,
+    )
+    return balance
+
+
+DAY_NAME_TO_NUM = {"dushanba": 0, "seshanba": 1, "chorshanba": 2, "payshanba": 3, "juma": 4, "shanba": 5, "yakshanba": 6}
+
+def calculate_remaining_month_payment(student):
+    balance = get_or_create_balance(student)
+    today = date.today()
+    last_day = calendar.monthrange(today.year, today.month)[1]
+    first_of_month = date(today.year, today.month, 1)
+    end_of_month = date(today.year, today.month, last_day)
+    total_expected = Decimal('0.00')
+    active_groups = student.groups.filter(status='aktiv')
+    for group in active_groups:
+        price = get_student_lesson_price(student, group)
+        if price <= 0:
+            continue
+        lesson_times = LessonTime.objects.filter(group=group)
+        lesson_day_nums = set()
+        for lt in lesson_times:
+            for d_name in lt.days.split(","):
+                d_name = d_name.strip().lower()
+                if d_name in DAY_NAME_TO_NUM:
+                    lesson_day_nums.add(DAY_NAME_TO_NUM[d_name])
+        if not lesson_day_nums:
+            continue
+        total_lessons = 0
+        current = first_of_month
+        while current <= end_of_month:
+            if current.weekday() in lesson_day_nums:
+                total_lessons += 1
+            current += timedelta(days=1)
+        attended = Attendance.objects.filter(
+            student=student, group=group,
+            date__year=today.year, date__month=today.month
+        ).count()
+        remaining_lessons = total_lessons - attended
+        total_expected += remaining_lessons * price
+    remaining = total_expected - balance.balance
+    return max(remaining, Decimal('0.00'))
 
 
 @login_required(login_url="login")
@@ -247,7 +408,7 @@ def teacher_my_groups(request):
 
 @login_required(login_url="login")
 def admin_mobile_groups(request):
-    is_admin = request.user.is_staff
+    is_admin = request.user.is_staff or request.user.is_superuser
     if not is_admin:
         emp = getattr(request.user, 'employee_profile', None)
         if emp is None or not emp.role or emp.role.name != "O'qituvchi":
@@ -359,7 +520,7 @@ def take_attendance(request):
     except:
         employee = None
 
-    is_admin = request.user.is_staff
+    is_admin = request.user.is_staff or request.user.is_superuser
     # Non-staff users with non-teacher role are also admins
     if not is_admin and (employee is None or not employee.role or employee.role.name != "O'qituvchi"):
         is_admin = True
@@ -421,29 +582,47 @@ def take_attendance(request):
             return JsonResponse({"error": "Faqat bugungi davomatni o'zgartira olasiz!"}, status=403)
 
         if status == "none":
-            Attendance.objects.filter(
+            old_att = Attendance.objects.filter(
                 group=group, student_id=student_id, date=rec_date
-            ).delete()
+            ).first()
+            if old_att:
+                # Agar eski davomat "present" yoki (absent va deduct_absent) bo'lsa, qaytarish kerak
+                old_status = old_att.status
+                try:
+                    student_obj = Student.objects.get(pk=student_id)
+                    # Eski davomatni o'chirishdan oldin balansni sinxronlash
+                    sync_attendance_balance(student_obj, group, old_att, "none", created_by)
+                except Student.DoesNotExist:
+                    pass
+                old_att.delete()
             continue
         student_ids_in_records.add(student_id)
         notes = rec.get("notes", "") or ""
-        Attendance.objects.update_or_create(
+        attendance, created = Attendance.objects.update_or_create(
             group=group,
             student_id=student_id,
             date=rec_date,
             defaults={"status": status, "teacher": employee, "notes": notes, "created_by": created_by}
         )
+        # Balansni sinxronlash (yaratilgan yoki yangilangan bo'lishidan qat'iy nazar)
+        try:
+            student_obj = Student.objects.get(pk=student_id)
+            sync_attendance_balance(student_obj, group, attendance, status, created_by)
+        except Student.DoesNotExist:
+            pass
 
     # Tegilmagan o'quvchilarni "Keldi" qilib saqlash
     if not allow_dated:
         for student in group.students.all():
             if student.id not in student_ids_in_records:
-                Attendance.objects.update_or_create(
+                attendance, _ = Attendance.objects.update_or_create(
                     group=group,
                     student_id=student.id,
                     date=today,
                     defaults={"status": "present", "teacher": employee, "notes": "", "created_by": created_by}
                 )
+                # Balansni sinxronlash
+                sync_attendance_balance(student, group, attendance, "present", created_by)
 
     return JsonResponse({"ok": True})
 
@@ -451,7 +630,7 @@ def take_attendance(request):
 
 @login_required(login_url="login")
 def teacher_attendance_desktop(request, pk):
-    is_admin = request.user.is_staff
+    is_admin = request.user.is_staff or request.user.is_superuser
     if not is_admin:
         employee = getattr(request.user, 'employee_profile', None)
         if employee is None or not employee.role or employee.role.name != "O'qituvchi":
@@ -480,6 +659,7 @@ def teacher_attendance_desktop(request, pk):
     today = date.today()
     sel_year = int(request.GET.get("year", today.year))
     sel_month = int(request.GET.get("month", today.month))
+    sel_month = max(1, min(12, sel_month))
 
     # Generate lesson dates for the selected month
     weekday_map_rev = {0:"dushanba",1:"seshanba",2:"chorshanba",3:"payshanba",4:"juma",5:"shanba",6:"yakshanba"}
@@ -524,8 +704,7 @@ def teacher_attendance_desktop(request, pk):
     present_count = sum(1 for a in attendances if a.status == "present")
     absent_count = sum(1 for a in attendances if a.status == "absent")
     excused_count = sum(1 for a in attendances if a.status == "excused")
-    boshqoldi_count = sum(1 for a in attendances if a.status == "boshqoldi")
-    total_marked = present_count + absent_count + excused_count + boshqoldi_count
+    total_marked = present_count + absent_count + excused_count
 
     def pct(n): return round((n / total * 100)) if total else 0
 
@@ -569,7 +748,7 @@ def teacher_attendance_desktop(request, pk):
             student_last_reason[a.student_id] = a.notes
 
     # Per-student full attendance history
-    status_labels = {'absent': 'Kelmadi', 'excused': 'Sababli', 'present': 'Keldi', 'boshqoldi': 'Davom olish'}
+    status_labels = {'absent': 'Kelmadi', 'excused': 'Sababli', 'present': 'Keldi'}
     student_att_history = {}
     for a in attendances.order_by('-created_at'):
         sid = a.student_id
@@ -581,8 +760,7 @@ def teacher_attendance_desktop(request, pk):
             teacher_name = teacher_name.strip()
         elif a.created_by:
             teacher_name = a.created_by
-        from datetime import timezone as dt_timezone, timedelta as dt_timedelta
-        tashkent_tz = dt_timezone(dt_timedelta(hours=5))
+        tashkent_tz = dt_timezone(timedelta(hours=5))
         day_names = {0:'Du',1:'Se',2:'Cho',3:'Pay',4:'Ju',5:'Sha',6:'Yak'}
         student_att_history[sid].append({
             'date': a.date.isoformat(),
@@ -610,7 +788,6 @@ def teacher_attendance_desktop(request, pk):
         "present_count": present_count,
         "absent_count": absent_count,
         "excused_count": excused_count,
-        "boshqoldi_count": boshqoldi_count,
         "total_marked": total_marked,
         "student_last_reason": student_last_reason,
         "student_att_history": student_att_history,
@@ -758,13 +935,28 @@ def group_list(request):
     })
 
 
+def _log_group_action(group, action, description, request=None, user=None):
+    created_by = ""
+    if request and request.user.is_authenticated:
+        employee = getattr(request.user, 'employee_profile', None)
+        if employee:
+            created_by = f"{employee.first_name} {employee.last_name or ''}".strip()
+        else:
+            created_by = request.user.username or ""
+    elif user:
+        created_by = str(user)
+    GroupLog.objects.create(group=group, action=action, description=description, created_by=created_by)
+
+
 @login_required(login_url="login")
 def group_create(request):
     form = GroupForm()
     if request.method == "POST":
         form = GroupForm(request.POST)
         if form.is_valid():
-            form.save()
+            group = form.save()
+            teacher_name = str(group.teacher) if group.teacher else "Belgilanmagan"
+            _log_group_action(group, "created", f"{group.name} (O'qituvchi: {teacher_name}, Kurs: {group.course.name})", request)
             messages.success(request, "Guruh muvaffaqiyatli qo'shildi")
             return redirect("group_list")
     return render(request, "group/form.html", {"form": form, "title": "Guruh qo'shish"})
@@ -775,9 +967,30 @@ def group_update(request, pk):
     group = get_object_or_404(Group, pk=pk)
     form = GroupForm(instance=group)
     if request.method == "POST":
+        old_teacher = str(group.teacher) if group.teacher else "-"
+        old_course = str(group.course) if group.course else "-"
+        old_room = str(group.room) if group.room else "-"
+        old_start = group.start_date
+        old_end = group.end_date
         form = GroupForm(request.POST, instance=group)
         if form.is_valid():
             form.save()
+            changes = []
+            new_teacher = str(group.teacher) if group.teacher else "-"
+            new_course = str(group.course) if group.course else "-"
+            new_room = str(group.room) if group.room else "-"
+            if old_teacher != new_teacher:
+                changes.append(f"O'qituvchi: {old_teacher} → {new_teacher}")
+            if old_course != new_course:
+                changes.append(f"Kurs: {old_course} → {new_course}")
+            if old_room != new_room:
+                changes.append(f"Xona: {old_room} → {new_room}")
+            if old_start != group.start_date:
+                changes.append(f"Boshlanish: {old_start} → {group.start_date}")
+            if old_end != group.end_date:
+                changes.append(f"Tugash: {old_end} → {group.end_date}")
+            desc = "; ".join(changes) if changes else "Guruh tahrirlandi"
+            _log_group_action(group, "updated", f"{group.name} — {desc}", request)
             messages.success(request, "Guruh muvaffaqiyatli yangilandi")
             return redirect("group_list")
     return render(request, "group/form.html", {"form": form, "title": "Guruhni tahrirlash"})
@@ -787,6 +1000,7 @@ def group_update(request, pk):
 def group_delete(request, pk):
     group = get_object_or_404(Group, pk=pk)
     if request.method == "POST":
+        _log_group_action(group, "deleted", f"Guruh o'chirildi: {group.name}", request)
         group.delete()
         messages.success(request, "Guruh muvaffaqiyatli o'chirildi")
         return redirect("group_list")
@@ -800,8 +1014,10 @@ def group_extend(request, pk):
         days = request.POST.get("days")
         if days and days.isdigit() and int(days) > 0:
             from datetime import timedelta
+            old_end = group.end_date
             group.end_date += timedelta(days=int(days))
             group.save()
+            _log_group_action(group, "extended", f"Guruh muddati {days} kunga uzaytirildi ({old_end} → {group.end_date})", request)
             messages.success(request, f"Guruh muddati {days} kunga uzaytirildi")
             return redirect("group_detail", pk=group.pk)
         messages.error(request, "Kunlar sonini to'g'ri kiriting")
@@ -1257,6 +1473,10 @@ def group_detail(request, pk):
 
     absence_reasons = AbsenceReason.objects.filter(is_active=True).order_by("order", "name")
 
+    student_prices = {}
+    for slp in StudentLessonPrice.objects.filter(student__in=students, group=group):
+        student_prices[slp.student_id] = slp.lesson_price
+
     return render(request, "group/detail.html", {
         "group": group,
         "students": students,
@@ -1271,6 +1491,569 @@ def group_detail(request, pk):
         "attendance_map": attendance_map,
         "attendance_notes": attendance_notes,
         "absence_reasons": absence_reasons,
+        "student_prices": student_prices,
+    })
+
+
+@login_required(login_url="login")
+def group_history(request, pk):
+    group = get_object_or_404(Group.objects.select_related("course", "room", "teacher"), pk=pk)
+    student_logs = StudentLog.objects.filter(group=group).select_related("student").order_by("-created_at")
+    group_logs = GroupLog.objects.filter(group=group).order_by("-created_at")
+
+    CAT_MAP = {
+        "created": ("create", "Yaratildi"),
+        "updated": ("edit", "Tahrir"),
+        "settings_updated": ("edit", "Sozlamalar"),
+        "lesson_added": ("edit", "Dars vaqti"),
+        "lesson_deleted": ("edit", "Dars vaqti"),
+        "deleted": ("delete", "O'chirildi"),
+        "archived": ("archive", "Arxiv"),
+        "frozen": ("freeze", "Muzlatish"),
+        "extended": ("extend", "Kun qo'shildi"),
+        "joined": ("student", "Qo'shildi"),
+        "student_added": ("student", "Qo'shildi"),
+        "students_added": ("student", "Qo'shildi"),
+        "removed": ("remove", "Chiqarildi"),
+        "student_removed": ("remove", "Chiqarildi"),
+        "transferred": ("transfer", "Ko'chirildi"),
+        "student_transferred": ("transfer", "Ko'chirildi"),
+        "all_students_transferred": ("transfer", "Ko'chirildi"),
+        "graduated": ("transfer", "Bitirildi"),
+        "student_graduated": ("transfer", "Bitirildi"),
+        "unfrozen": ("freeze", "Muzlatish bekor"),
+    }
+
+    # Export to Excel
+    if request.GET.get("export"):
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Davomat"
+
+        header_font = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
+        header_fill = PatternFill(start_color="2001FF", end_color="2001FF", fill_type="solid")
+        header_align = Alignment(horizontal="center", vertical="center")
+        thin_border = Border(
+            left=Side(style="thin", color="EDEEF5"),
+            right=Side(style="thin", color="EDEEF5"),
+            top=Side(style="thin", color="EDEEF5"),
+            bottom=Side(style="thin", color="EDEEF5"),
+        )
+
+        headers = ["Sana", "O'quvchi", "Telefon", "Holati", "Izoh", "O'qituvchi", "Dars vaqti"]
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+            cell.border = thin_border
+
+        weekday_map_rev = {0:"dushanba",1:"seshanba",2:"chorshanba",3:"payshanba",4:"juma",5:"shanba",6:"yakshanba"}
+        lesson_day_numbers = set()
+        for lt in group.lesson_times.all():
+            for d_name in lt.days.split(","):
+                d_name = d_name.strip()
+                for num, uz_name in weekday_map_rev.items():
+                    if uz_name == d_name:
+                        lesson_day_numbers.add(num)
+        if not lesson_day_numbers:
+            lesson_day_numbers = {0,1,2,3,4,5,6}
+
+        start = group.start_date or date.today() - timedelta(days=30)
+        end = date.today()
+        students = group.students.all().order_by("first_name")
+        attendances = Attendance.objects.filter(group=group, date__gte=start, date__lte=end).select_related("student", "teacher", "lesson_time")
+        att_map = {}
+        for a in attendances:
+            att_map[(a.student_id, a.date)] = a
+
+        row = 2
+        d = start
+        while d <= end:
+            if d.weekday() in lesson_day_numbers:
+                day_has = any((s.id, d) in att_map for s in students)
+                if not day_has:
+                    d += timedelta(days=1)
+                    continue
+                date_fill = PatternFill(start_color="F8F9FC", end_color="F8F9FC", fill_type="solid")
+                date_font = Font(name="Calibri", bold=True, size=11, color="2001FF")
+                ws.cell(row=row, column=1, value=d.strftime("%d.%m.%Y")).font = date_font
+                ws.cell(row=row, column=1).fill = date_fill
+                for c in range(2, 8):
+                    ws.cell(row=row, column=c).fill = date_fill
+                row += 1
+                for s in students:
+                    a = att_map.get((s.id, d))
+                    ws.cell(row=row, column=2, value=f"{s.first_name} {s.last_name}")
+                    ws.cell(row=row, column=3, value=s.phone or "")
+                    if a:
+                        status_map = {"present": "Keldi", "absent": "Kelmadi", "excused": "Sababli kelmadi"}
+                        ws.cell(row=row, column=4, value=status_map.get(a.status, a.status))
+                        ws.cell(row=row, column=5, value=a.notes or "")
+                        ws.cell(row=row, column=6, value=str(a.teacher) if a.teacher else "")
+                        ws.cell(row=row, column=7, value=str(a.lesson_time) if a.lesson_time else "")
+                        status_fill_map = {
+                            "present": PatternFill(start_color="E6F9F1", end_color="E6F9F1", fill_type="solid"),
+                            "absent": PatternFill(start_color="FDEAEA", end_color="FDEAEA", fill_type="solid"),
+                            "excused": PatternFill(start_color="FFF7E6", end_color="FFF7E6", fill_type="solid"),
+                        }
+                        if a.status in status_fill_map:
+                            ws.cell(row=row, column=4).fill = status_fill_map[a.status]
+                    for c in range(1, 8):
+                        ws.cell(row=row, column=c).border = thin_border
+                        ws.cell(row=row, column=c).alignment = Alignment(vertical="center")
+                    row += 1
+            d += timedelta(days=1)
+
+        ws.column_dimensions["A"].width = 14
+        ws.column_dimensions["B"].width = 28
+        ws.column_dimensions["C"].width = 18
+        ws.column_dimensions["D"].width = 14
+        ws.column_dimensions["E"].width = 30
+        ws.column_dimensions["F"].width = 22
+        ws.column_dimensions["G"].width = 14
+
+        from django.http import HttpResponse
+        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Content-Disposition"] = f'attachment; filename="{group.name}_davomat.xlsx"'
+        wb.save(response)
+        return response
+
+    combined = []
+    for log in student_logs:
+        cat, label = CAT_MAP.get(log.action, ("student", "O'quvchi"))
+        combined.append({
+            "category": cat,
+            "category_label": label,
+            "description": f"{log.student.first_name} {log.student.last_name}",
+            "detail": log.reason or "",
+            "student_name": f"{log.student.first_name} {log.student.last_name}",
+            "student_phone": log.student.phone or "",
+            "group_name": group.name,
+            "created_by": "",
+            "created_at": log.created_at,
+        })
+    for log in group_logs:
+        cat, label = CAT_MAP.get(log.action, ("edit", "O'zgarish"))
+        combined.append({
+            "category": cat,
+            "category_label": label,
+            "description": log.description,
+            "detail": "",
+            "student_name": "",
+            "student_phone": "",
+            "group_name": group.name,
+            "created_by": log.created_by,
+            "created_at": log.created_at,
+        })
+    combined.sort(key=lambda x: x["created_at"], reverse=True)
+
+    stats = {
+        "total": len(combined),
+        "added": sum(1 for c in combined if c["category"] == "student"),
+        "transferred": sum(1 for c in combined if c["category"] == "transfer"),
+        "frozen": sum(1 for c in combined if c["category"] == "freeze"),
+        "removed": sum(1 for c in combined if c["category"] == "remove"),
+        "edited": sum(1 for c in combined if c["category"] in ("edit", "extend", "create", "archive")),
+    }
+
+    from django.core.paginator import Paginator
+    try:
+        page = int(request.GET.get("page", 1))
+    except (ValueError, TypeError):
+        page = 1
+    try:
+        per_page = int(request.GET.get("per_page", 20))
+    except (ValueError, TypeError):
+        per_page = 20
+    if per_page not in (20, 50, 100):
+        per_page = 20
+    paginator = Paginator(combined, per_page)
+
+    return render(request, "group/history.html", {
+        "group": group,
+        "logs": paginator.page(page),
+        "page_obj": paginator.page(page),
+        "stats": stats,
+        "employees": Employee.objects.filter(role__name="O'qituvchi").order_by("first_name"),
+    })
+
+
+@login_required(login_url="login")
+def group_davom(request, pk):
+    employee = getattr(request.user, 'employee_profile', None)
+    is_admin = request.user.is_staff or request.user.is_superuser or (employee and employee.role and employee.role.name == "Administrator")
+
+    group = get_object_or_404(
+        Group.objects.select_related("course", "room", "teacher").prefetch_related("lesson_times"),
+        pk=pk
+    )
+    students = group.students.all().order_by("first_name")
+
+    # Export to Excel
+    if request.GET.get("export"):
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Davomat"
+
+        header_font = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
+        header_fill = PatternFill(start_color="2001FF", end_color="2001FF", fill_type="solid")
+        header_align = Alignment(horizontal="center", vertical="center")
+        thin_border = Border(
+            left=Side(style="thin", color="EDEEF5"),
+            right=Side(style="thin", color="EDEEF5"),
+            top=Side(style="thin", color="EDEEF5"),
+            bottom=Side(style="thin", color="EDEEF5"),
+        )
+
+        headers = ["Sana", "O'quvchi", "Telefon", "Holati", "Izoh", "O'qituvchi", "Dars vaqti"]
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+            cell.border = thin_border
+
+        weekday_map_rev = {0:"dushanba",1:"seshanba",2:"chorshanba",3:"payshanba",4:"juma",5:"shanba",6:"yakshanba"}
+        lesson_day_numbers = set()
+        for lt in group.lesson_times.all():
+            for d_name in lt.days.split(","):
+                d_name = d_name.strip()
+                for num, uz_name in weekday_map_rev.items():
+                    if uz_name == d_name:
+                        lesson_day_numbers.add(num)
+        if not lesson_day_numbers:
+            lesson_day_numbers = {0,1,2,3,4,5,6}
+
+        start = group.start_date or date.today() - timedelta(days=30)
+        end = date.today()
+        students_exp = group.students.all().order_by("first_name")
+        attendances = Attendance.objects.filter(group=group, date__gte=start, date__lte=end).select_related("student", "teacher", "lesson_time")
+        att_map = {}
+        for a in attendances:
+            att_map[(a.student_id, a.date)] = a
+
+        row = 2
+        d = start
+        while d <= end:
+            if d.weekday() in lesson_day_numbers:
+                day_has = any((s.id, d) in att_map for s in students_exp)
+                if not day_has:
+                    d += timedelta(days=1)
+                    continue
+                date_fill = PatternFill(start_color="F8F9FC", end_color="F8F9FC", fill_type="solid")
+                date_font = Font(name="Calibri", bold=True, size=11, color="2001FF")
+                ws.cell(row=row, column=1, value=d.strftime("%d.%m.%Y")).font = date_font
+                ws.cell(row=row, column=1).fill = date_fill
+                for c in range(2, 8):
+                    ws.cell(row=row, column=c).fill = date_fill
+                row += 1
+                for s in students_exp:
+                    a = att_map.get((s.id, d))
+                    ws.cell(row=row, column=2, value=f"{s.first_name} {s.last_name}")
+                    ws.cell(row=row, column=3, value=s.phone or "")
+                    if a:
+                        status_map = {"present": "Keldi", "absent": "Kelmadi", "excused": "Sababli kelmadi"}
+                        ws.cell(row=row, column=4, value=status_map.get(a.status, a.status))
+                        ws.cell(row=row, column=5, value=a.notes or "")
+                        ws.cell(row=row, column=6, value=str(a.teacher) if a.teacher else "")
+                        ws.cell(row=row, column=7, value=str(a.lesson_time) if a.lesson_time else "")
+                        status_fill_map = {
+                            "present": PatternFill(start_color="E6F9F1", end_color="E6F9F1", fill_type="solid"),
+                            "absent": PatternFill(start_color="FDEAEA", end_color="FDEAEA", fill_type="solid"),
+                            "excused": PatternFill(start_color="FFF7E6", end_color="FFF7E6", fill_type="solid"),
+                        }
+                        if a.status in status_fill_map:
+                            ws.cell(row=row, column=4).fill = status_fill_map[a.status]
+                    for c in range(1, 8):
+                        ws.cell(row=row, column=c).border = thin_border
+                        ws.cell(row=row, column=c).alignment = Alignment(vertical="center")
+                    row += 1
+            d += timedelta(days=1)
+
+        ws.column_dimensions["A"].width = 14
+        ws.column_dimensions["B"].width = 28
+        ws.column_dimensions["C"].width = 18
+        ws.column_dimensions["D"].width = 14
+        ws.column_dimensions["E"].width = 30
+        ws.column_dimensions["F"].width = 22
+        ws.column_dimensions["G"].width = 14
+
+        from django.http import HttpResponse
+        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Content-Disposition"] = f'attachment; filename="{group.name}_davomat.xlsx"'
+        wb.save(response)
+        return response
+
+    today = date.today()
+
+    # Specific date override — admin can pick any date
+    specific_date = request.GET.get("date", "")
+    if specific_date:
+        try:
+            specific_date = date.fromisoformat(specific_date)
+            sel_year = specific_date.year
+            sel_month = specific_date.month
+        except:
+            specific_date = None
+    else:
+        specific_date = None
+
+    # Month/year from query string, default to current
+    sel_year = int(request.GET.get("year", today.year))
+    sel_month = int(request.GET.get("month", today.month))
+    sel_month = max(1, min(12, sel_month))
+
+    # Generate lesson dates for the selected month
+    weekday_map_rev = {0:"dushanba",1:"seshanba",2:"chorshanba",3:"payshanba",4:"juma",5:"shanba",6:"yakshanba"}
+    lesson_day_numbers = set()
+    for lt in group.lesson_times.all():
+        for d_name in lt.days.split(","):
+            d_name = d_name.strip()
+            for num, uz_name in weekday_map_rev.items():
+                if uz_name == d_name:
+                    lesson_day_numbers.add(num)
+
+    _, last_day = calendar.monthrange(sel_year, sel_month)
+    month_start = date(sel_year, sel_month, 1)
+    month_end = date(sel_year, sel_month, last_day)
+
+    if specific_date:
+        lesson_dates = [specific_date]
+    else:
+        group_start = group.start_date if group.start_date else month_start
+        lesson_start = max(month_start, group_start)
+
+        lesson_dates = []
+        d = lesson_start
+        while d <= month_end:
+            if d.weekday() in lesson_day_numbers:
+                lesson_dates.append(d)
+            d += timedelta(days=1)
+
+    # Build attendance matrix: {student_id: {date_str: status}}
+    attendances = Attendance.objects.filter(group=group, date__gte=month_start, date__lte=month_end)
+    att_matrix = {}
+    att_notes = {}
+    for a in attendances:
+        sid = a.student_id
+        if sid not in att_matrix:
+            att_matrix[sid] = {}
+        att_matrix[sid][a.date.isoformat()] = a.status
+        if a.notes:
+            if sid not in att_notes:
+                att_notes[sid] = {}
+            att_notes[sid][a.date.isoformat()] = a.notes
+
+    if request.method == "POST":
+        import json
+        try:
+            data = json.loads(request.body)
+        except:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+        records = data.get("records", [])
+        allow_dated = data.get("allow_dated", False)
+        employee = getattr(request.user, 'employee_profile', None)
+        created_by = "Admin"
+        if employee:
+            created_by = f"{employee.first_name} {employee.last_name or ''}".strip()
+        # Permission check
+        if not is_admin:
+            if employee is None or group.teacher_id != employee.id:
+                return JsonResponse({"error": "Siz o'qituvchi emassiz!"}, status=403)
+            # Teacher faqat bugun va dars vaqtida
+            weekday_map = {0:"dushanba",1:"seshanba",2:"chorshanba",3:"payshanba",4:"juma",5:"shanba",6:"yakshanba"}
+            today_uz = weekday_map[today.weekday()]
+            now = datetime.now().time()
+            allowed = False
+            for lt in group.lesson_times.all():
+                for d_name in lt.days.split(","):
+                    if d_name.strip() == today_uz:
+                        if lt.start_time and lt.end_time:
+                            if lt.start_time <= now <= lt.end_time:
+                                allowed = True
+                                break
+                if allowed:
+                    break
+            if not allowed:
+                return JsonResponse({"error": "Dars vaqti ichida bo'lmaganda davomatni o'zgartira olmaysiz!"}, status=403)
+        today_for_save = today
+        student_ids_in_records = set()
+        for rec in records:
+            student_id = rec.get("student_id")
+            if not student_id:
+                continue
+            status = rec.get("status", "present")
+            notes = rec.get("notes", "") or ""
+            rec_date = rec.get("date")
+            if allow_dated and rec_date:
+                try:
+                    rec_date = date.fromisoformat(rec_date)
+                except:
+                    rec_date = today_for_save
+            else:
+                rec_date = today_for_save
+            # Teacher faqat bugun uchun
+            if not is_admin and rec_date != today_for_save:
+                return JsonResponse({"error": "Faqat bugungi davomatni o'zgartira olasiz!"}, status=403)
+            if status == "none":
+                old_att = Attendance.objects.filter(
+                    group=group, student_id=student_id, date=rec_date
+                ).first()
+                if old_att:
+                    try:
+                        student_obj = Student.objects.get(pk=student_id)
+                        sync_attendance_balance(student_obj, group, old_att, "none", created_by)
+                    except Student.DoesNotExist:
+                        pass
+                    old_att.delete()
+                continue
+            student_ids_in_records.add(student_id)
+            attendance, _ = Attendance.objects.update_or_create(
+                group=group,
+                student_id=student_id,
+                date=rec_date,
+                defaults={"status": status, "teacher": employee, "notes": notes, "created_by": created_by}
+            )
+            # Balansni sinxronlash
+            try:
+                student_obj = Student.objects.get(pk=student_id)
+                sync_attendance_balance(student_obj, group, attendance, status, created_by)
+            except Student.DoesNotExist:
+                pass
+        # Tegilmagan o'quvchilarni "Keldi" qilib saqlash (faqat allow_dated=False bo'lsa)
+        if not allow_dated:
+            for student in group.students.all():
+                if student.id not in student_ids_in_records:
+                    attendance, _ = Attendance.objects.update_or_create(
+                        group=group,
+                        student_id=student.id,
+                        date=today_for_save,
+                        defaults={"status": "present", "teacher": employee, "notes": "", "created_by": created_by}
+                    )
+                    # Balansni sinxronlash
+                    sync_attendance_balance(student, group, attendance, "present", created_by)
+        return JsonResponse({"ok": True})
+
+    # Stats for the month
+    total = students.count()
+    present_count = sum(1 for a in attendances if a.status == "present")
+    absent_count = sum(1 for a in attendances if a.status == "absent")
+    excused_count = sum(1 for a in attendances if a.status == "excused")
+    total_marked = present_count + absent_count + excused_count
+
+    # Month options for selector
+    months_uz = ["", "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"]
+
+    # Check if teacher can edit (only during lesson time)
+    can_edit = True if is_admin else False
+    if not is_admin:
+        weekday_map = {0:"dushanba",1:"seshanba",2:"chorshanba",3:"payshanba",4:"juma",5:"shanba",6:"yakshanba"}
+        today_uz = weekday_map[today.weekday()]
+        now = datetime.now().time()
+        for lt in group.lesson_times.all():
+            for d_name in lt.days.split(","):
+                if d_name.strip() == today_uz:
+                    if lt.start_time and lt.end_time:
+                        if lt.start_time <= now <= lt.end_time:
+                            can_edit = True
+                            break
+            if can_edit:
+                break
+
+    absence_reasons = AbsenceReason.objects.filter(is_active=True).order_by("order", "name")
+
+    # Today's groups for mobile group picker (admin only)
+    today_groups = []
+    if is_admin:
+        now = datetime.now()
+        weekday_map = {0:"dushanba",1:"seshanba",2:"chorshanba",3:"payshanba",4:"juma",5:"shanba",6:"yakshanba"}
+        today_uz = weekday_map[now.weekday()]
+        qs = Group.objects.filter(status__in=["aktiv","kutilyotgan"], lesson_times__days__contains=today_uz).select_related("course","teacher").annotate(sc=Count("students")).distinct().order_by("name")
+        for g in qs:
+            today_groups.append({"id":g.id,"name":g.name,"course":g.course.name,"teacher_name":str(g.teacher),"sc":g.sc,"active":g.id==group.id})
+
+    # Per-student latest absence reason
+    student_last_reason = {}
+    for a in attendances.filter(status__in=['absent', 'excused']).exclude(notes__exact='').order_by('-date'):
+        if a.student_id not in student_last_reason:
+            student_last_reason[a.student_id] = a.notes
+
+    # Per-student notes list for display after name
+    tashkent_tz = dt_timezone(timedelta(hours=5))
+    student_notes_list = {}
+    for a in attendances.filter(status__in=['absent', 'excused']).exclude(notes__exact='').order_by('-date'):
+        sid = a.student_id
+        if sid not in student_notes_list:
+            student_notes_list[sid] = []
+        if len(student_notes_list[sid]) < 3:
+            dt_str = ''
+            if a.created_at:
+                dt_str = a.created_at.astimezone(tashkent_tz).strftime('%d.%m.%Y %H:%M')
+            student_notes_list[sid].append({
+                'date': a.date.isoformat(),
+                'notes': a.notes,
+                'datetime': dt_str,
+                'teacher': a.created_by or '',
+            })
+
+    # Per-student full attendance history (all-time, not limited to selected month)
+    all_attendances = Attendance.objects.filter(group=group).select_related("teacher").order_by('-created_at')
+    status_labels = {'absent': 'Kelmadi', 'excused': 'Sababli', 'present': 'Keldi'}
+    student_att_history = {}
+    for a in all_attendances:
+        sid = a.student_id
+        if sid not in student_att_history:
+            student_att_history[sid] = []
+        teacher_name = ''
+        if a.teacher:
+            teacher_name = (a.teacher.first_name or '') + ' ' + (a.teacher.last_name or '')
+            teacher_name = teacher_name.strip()
+        elif a.created_by:
+            teacher_name = a.created_by
+        tashkent_tz = dt_timezone(timedelta(hours=5))
+        day_names = {0:'Du',1:'Se',2:'Cho',3:'Pay',4:'Ju',5:'Sha',6:'Yak'}
+        student_att_history[sid].append({
+            'date': a.date.isoformat(),
+            'datetime': a.created_at.astimezone(tashkent_tz).strftime('%d.%m.%Y %H:%M'),
+            'day_name': day_names[a.date.weekday()],
+            'status': status_labels.get(a.status, a.status),
+            'notes': a.notes or '',
+            'teacher': teacher_name,
+        })
+
+    return render(request, "group/davom.html", {
+        "group": group,
+        "students": students,
+        "lesson_dates": lesson_dates,
+        "att_matrix": att_matrix,
+        "att_notes": att_notes,
+        "student_last_reason": student_last_reason,
+        "student_att_history": student_att_history,
+        "student_notes_list": student_notes_list,
+        "absence_reasons": absence_reasons,
+        "today": today,
+        "specific_date": specific_date,
+        "status_labels": status_labels,
+        "sel_year": sel_year,
+        "sel_month": sel_month,
+        "months_uz": months_uz,
+        "years": range(2024, 2031),
+        "total": total,
+        "present_count": present_count,
+        "absent_count": absent_count,
+        "excused_count": excused_count,
+        "total_marked": total_marked,
+        "is_admin": is_admin,
+        "can_edit": can_edit,
+        "today_groups": today_groups,
+        "remaining_days": group.remaining_days(),
+        "is_ending_soon": group.is_ending_soon(),
+        "end_date": group.end_date,
     })
 
 
@@ -1294,6 +2077,17 @@ def add_student_to_group(request, group_pk, student_pk):
     if not _add_student_to_group(student, group):
         messages.warning(request, f"{student.first_name} {student.last_name} allaqachon {group.name} guruhiga qo'shilgan!")
         return redirect("group_detail", pk=group_pk)
+    lesson_price = request.GET.get("lesson_price")
+    if lesson_price:
+        try:
+            price = Decimal(lesson_price)
+            StudentLessonPrice.objects.update_or_create(
+                student=student, group=group,
+                defaults={"lesson_price": price}
+            )
+        except:
+            pass
+    _log_group_action(group, "student_added", f"O'quvchi qo'shildi: {student.first_name} {student.last_name} (+998 {student.phone})", request)
     messages.success(request, f"{student.first_name} {student.last_name} {group.name} guruhiga qo'shildi")
     return redirect("group_detail", pk=group_pk)
 
@@ -1308,6 +2102,7 @@ def add_pending_to_group(request, group_pk, course_pk):
         if _add_student_to_group(student, group, f"{group.name} guruhiga kurs bo'yicha qo'shildi"):
             count += 1
     if count:
+        _log_group_action(group, "students_added", f"{count} ta o'quvchi kurs bo'yicha qo'shildi ({course.name})", request)
         messages.success(request, f"{count} ta o'quvchi {group.name} guruhiga qo'shildi")
     else:
         messages.info(request, "Qo'shiladigan o'quvchi topilmadi")
@@ -1334,6 +2129,7 @@ def remove_student_from_group(request, group_pk, student_pk):
         StudentLog.objects.create(
             student=student, group=group, action="removed", reason=reason
         )
+        _log_group_action(group, "student_removed", f"O'quvchi chiqarildi: {student.first_name} {student.last_name} (Sabab: {reason})", request)
         messages.success(request, f"{student.first_name} {student.last_name} guruhdan chiqarildi")
         return redirect("group_detail", pk=group_pk)
     return redirect("group_detail", pk=group_pk)
@@ -1355,6 +2151,7 @@ def graduate_student(request, group_pk, student_pk):
         student=student, group=group, action="graduated",
         reason=f"{group.name} guruhini bitirdi"
     )
+    _log_group_action(group, "student_graduated", f"O'quvchi bitirdi: {student.first_name} {student.last_name}", request)
     messages.success(request, f"{student.first_name} {student.last_name} {group.name} guruhini bitirdi!")
     return redirect("group_detail", pk=group_pk)
 
@@ -1380,6 +2177,7 @@ def transfer_student(request, group_pk, student_pk):
                 student=student, group=group, action="transferred",
                 reason=reason or f"{old_name} → Kutilyotganlar"
             )
+            _log_group_action(group, "student_transferred", f"O'quvchi kutilyotganlarga o'tkazildi: {student.first_name} {student.last_name}", request)
             messages.success(request, f"{student.first_name} {student.last_name} {old_name} dan kutilyotganlarga o'tkazildi!")
             return redirect("pending_students")
         if not new_group_id:
@@ -1397,6 +2195,7 @@ def transfer_student(request, group_pk, student_pk):
             student=student, group=group, action="transferred",
             reason=full_reason
         )
+        _log_group_action(group, "student_transferred", f"O'quvchi ko'chirildi: {student.first_name} {student.last_name} ({group.name} → {new_group.name})", request)
         messages.success(request, f"{student.first_name} {student.last_name} {group.name} dan {new_group.name} ga o'tkazildi!")
         return redirect("group_detail", pk=new_group.pk)
 
@@ -1458,6 +2257,7 @@ def transfer_all_students(request, pk):
                 reason=full_reason
             )
             count += 1
+        _log_group_action(group, "all_students_transferred", f"Barcha o'quvchilar ({count} ta) ko'chirildi: {group.name} → {new_group.name}", request)
         messages.success(request, f"{count} ta o'quvchi {group.name} dan {new_group.name} ga o'tkazildi!")
         return redirect("group_detail", pk=new_group.pk)
     course_id = request.GET.get("course_id")
@@ -1657,6 +2457,7 @@ def group_freeze(request, pk):
                     student=student, group=group, action="frozen",
                     reason=f"Guruh bilan {days} kunga muzlatildi. {reason}" if reason else f"Guruh bilan {days} kunga muzlatildi"
                 )
+            _log_group_action(group, "frozen", f"Guruh {days} kunga muzlatildi ({students.count()} ta o'quvchi)", request)
             messages.success(request, f"Guruh {days} kunga muzlatildi ({students.count()} ta o'quvchi)")
             return redirect("group_detail", pk=group.pk)
     else:
@@ -1681,6 +2482,7 @@ def group_archive(request, pk):
             )
         group.status = "arxivlangan"
         group.save()
+        _log_group_action(group, "archived", f"Guruh arxivlandi ({students.count()} ta o'quvchi bitirildi)", request)
         messages.success(request, f"Guruh arxivlandi va {students.count()} ta o'quvchi bitirildi")
         return redirect("group_list")
     return render(request, "group/archive.html", {"group": group})
@@ -1695,9 +2497,26 @@ def group_settings(request, pk):
 
     if request.method == "POST":
         if "update_group" in request.POST:
+            old_teacher = str(group.teacher) if group.teacher else "-"
+            old_room = str(group.room) if group.room else "-"
+            old_start = group.start_date
+            old_end = group.end_date
             group_form = GroupForm(request.POST, instance=group)
             if group_form.is_valid():
                 group_form.save()
+                changes = []
+                new_teacher = str(group.teacher) if group.teacher else "-"
+                new_room = str(group.room) if group.room else "-"
+                if old_teacher != new_teacher:
+                    changes.append(f"O'qituvchi: {old_teacher} → {new_teacher}")
+                if old_room != new_room:
+                    changes.append(f"Xona: {old_room} → {new_room}")
+                if old_start != group.start_date:
+                    changes.append(f"Boshlanish: {old_start} → {group.start_date}")
+                if old_end != group.end_date:
+                    changes.append(f"Tugash: {old_end} → {group.end_date}")
+                desc = "; ".join(changes) if changes else "Sozlamalar yangilandi"
+                _log_group_action(group, "settings_updated", desc, request)
                 messages.success(request, "Guruh sozlamalari saqlandi")
                 return redirect("group_settings", pk=group.pk)
         elif "add_lesson" in request.POST:
@@ -1706,11 +2525,15 @@ def group_settings(request, pk):
                 lesson = lesson_form.save(commit=False)
                 lesson.group = group
                 lesson.save()
+                _log_group_action(group, "lesson_added", f"Dars vaqti qo'shildi: {lesson.days} {lesson.start_time}-{lesson.end_time}", request)
                 messages.success(request, "Dars vaqti qo'shildi")
                 return redirect("group_settings", pk=group.pk)
         elif "delete_lesson" in request.POST:
             lesson_id = request.POST.get("lesson_id")
             if lesson_id:
+                lt = LessonTime.objects.filter(pk=lesson_id, group=group).first()
+                if lt:
+                    _log_group_action(group, "lesson_deleted", f"Dars vaqti o'chirildi: {lt.days} {lt.start_time}-{lt.end_time}", request)
                 LessonTime.objects.filter(pk=lesson_id, group=group).delete()
                 messages.success(request, "Dars vaqti o'chirildi")
                 return redirect("group_settings", pk=group.pk)
@@ -1724,8 +2547,11 @@ def group_settings(request, pk):
 
 
 @login_required(login_url="login")
+@login_required(login_url="login")
 def employee_list(request):
-    employees = Employee.objects.select_related("position", "role").all().order_by("-created_at")
+    employees = Employee.objects.select_related("position", "role").annotate(
+        group_count=Count("teacher_groups")
+    ).all().order_by("-created_at")
     return render(request, "employee/list.html", {"employees": employees})
 
 
@@ -1750,6 +2576,61 @@ def employee_create(request):
             messages.success(request, "Xodim muvaffaqiyatli qo'shildi")
             return redirect("employee_list")
     return render(request, "employee/create.html", {"form": form})
+
+
+@login_required(login_url="login")
+def employee_profile(request, pk):
+    employee = get_object_or_404(
+        Employee.objects.select_related("position", "role", "user").prefetch_related("branches"),
+        pk=pk
+    )
+    groups = employee.teacher_groups.select_related("course", "room").annotate(
+        student_count=Count("students")
+    ).all().order_by("-created_at")
+    return render(request, "employee/profile.html", {
+        "employee": employee,
+        "groups": groups,
+    })
+
+
+@login_required(login_url="login")
+def employee_update(request, pk):
+    employee = get_object_or_404(Employee, pk=pk)
+    form = EmployeeForm(instance=employee)
+    if request.method == "POST":
+        form = EmployeeForm(request.POST, request.FILES, instance=employee)
+        if form.is_valid():
+            employee = form.save(commit=False)
+            password = form.cleaned_data.get("password")
+            if password:
+                if employee.user:
+                    employee.user.set_password(password)
+                    employee.user.save()
+                else:
+                    user = User.objects.create_user(
+                        username=employee.phone,
+                        password=password,
+                        first_name=employee.first_name,
+                        last_name=employee.last_name,
+                    )
+                    employee.user = user
+            employee.save()
+            form.save_m2m()
+            messages.success(request, "Xodim muvaffaqiyatli yangilandi")
+            return redirect("employee_profile", pk=employee.pk)
+    return render(request, "employee/create.html", {"form": form})
+
+
+@login_required(login_url="login")
+def employee_delete(request, pk):
+    employee = get_object_or_404(Employee, pk=pk)
+    if request.method == "POST":
+        if employee.user:
+            employee.user.delete()
+        employee.delete()
+        messages.success(request, "Xodim muvaffaqiyatli o'chirildi")
+        return redirect("employee_list")
+    return render(request, "employee/delete.html", {"object": employee, "title": "Xodimni o'chirish"})
 
 
 @login_required(login_url="login")
@@ -2026,6 +2907,133 @@ def absence_reason_delete(request, pk):
         messages.success(request, "Davomat sababi o'chirildi")
         return redirect("absence_reason_list")
     return render(request, "absence_reason/delete.html", {"reason": reason})
+
+
+# ===== BALANCE & PAYMENT VIEWS =====
+
+@login_required(login_url="login")
+def payment_create(request):
+    if request.method == "POST":
+        student_id = request.POST.get("student_id")
+        amount = request.POST.get("amount", "0")
+        description = request.POST.get("description", "").strip()
+        if not student_id or not amount:
+            return JsonResponse({"success": False, "error": "O'quvchi va summani kiriting!"})
+        try:
+            amount = Decimal(amount)
+        except:
+            return JsonResponse({"success": False, "error": "Noto'g'ri summa!"})
+        if amount <= 0:
+            return JsonResponse({"success": False, "error": "Summa musbat bo'lishi kerak!"})
+        student = get_object_or_404(Student, pk=student_id)
+        employee = getattr(request.user, 'employee_profile', None)
+        created_by = "Admin"
+        if employee:
+            created_by = f"{employee.first_name} {employee.last_name or ''}".strip()
+        process_payment(student, amount, description=description, created_by=created_by)
+        balance = get_or_create_balance(student)
+        return JsonResponse({
+            "success": True,
+            "student_name": f"{student.first_name} {student.last_name}",
+            "amount": float(amount),
+            "admin_name": created_by,
+            "date": timezone.localtime().strftime("%d.%m.%Y %H:%M"),
+            "balance": float(balance.balance),
+        })
+    students = Student.objects.all().order_by("first_name", "last_name").prefetch_related('groups', 'balance')
+    employee = getattr(request.user, 'employee_profile', None)
+    admin_name = "Admin"
+    if employee:
+        admin_name = f"{employee.first_name} {employee.last_name or ''}".strip()
+    student_data = []
+    for s in students:
+        balance = get_or_create_balance(s)
+        remaining = calculate_remaining_month_payment(s)
+        groups_info = []
+        for g in s.groups.filter(status='aktiv'):
+            groups_info.append({
+                'name': g.name,
+                'price': float(get_student_lesson_price(s, g)),
+            })
+        student_data.append({
+            'id': s.pk,
+            'first_name': s.first_name,
+            'last_name': s.last_name,
+            'phone': s.phone,
+            'balance': float(balance.balance),
+            'remaining_month_payment': float(remaining),
+            'groups': groups_info,
+        })
+    return render(request, "payment/create.html", {
+        "students_json": json.dumps(student_data, ensure_ascii=False),
+        "admin_name": admin_name,
+    })
+
+
+@login_required(login_url="login")
+def payment_history(request):
+    student_id = request.GET.get("student_id")
+    transactions = Transaction.objects.all().select_related("student", "group").order_by("-created_at")
+    if student_id:
+        transactions = transactions.filter(student_id=student_id)
+    return render(request, "payment/history.html", {
+        "transactions": transactions,
+        "students": Student.objects.all().order_by("first_name", "last_name"),
+        "selected_student_id": int(student_id) if student_id else None,
+    })
+
+
+@login_required(login_url="login")
+def student_balance_view(request, pk):
+    student = get_object_or_404(Student, pk=pk)
+    balance = get_or_create_balance(student)
+    transactions = Transaction.objects.filter(student=student).select_related("group").order_by("-created_at")
+    total_income = sum(t.amount for t in transactions if t.amount > 0)
+    total_expense = sum(abs(t.amount) for t in transactions if t.amount < 0)
+    return render(request, "student/balance.html", {
+        "student": student,
+        "balance": balance,
+        "transactions": transactions,
+        "total_income": total_income,
+        "total_expense": total_expense,
+    })
+
+
+@login_required(login_url="login")
+def global_config(request):
+    config = GlobalConfig.get_instance()
+    if request.method == "POST":
+        deduct_absent = request.POST.get("deduct_absent") == "on"
+        deduct_excused = request.POST.get("deduct_excused") == "on"
+        config.deduct_absent = deduct_absent
+        config.deduct_excused = deduct_excused
+        config.save()
+        messages.success(request, "Pul yechish sozlamalari saqlandi")
+        return redirect("global_config")
+    return render(request, "settings/global_config.html", {"config": config})
+
+
+@login_required(login_url="login")
+def update_student_lesson_price(request, group_pk, student_pk):
+    group = get_object_or_404(Group, pk=group_pk)
+    student = get_object_or_404(Student, pk=student_pk)
+    if request.method == "POST":
+        price = request.POST.get("price", "").strip()
+        try:
+            if price == "":
+                StudentLessonPrice.objects.filter(student=student, group=group).delete()
+                messages.success(request, f"{student.first_name} uchun shaxsiy narx o'chirildi")
+            else:
+                price = Decimal(price)
+                StudentLessonPrice.objects.update_or_create(
+                    student=student, group=group,
+                    defaults={"lesson_price": price}
+                )
+                messages.success(request, f"{student.first_name} uchun shaxsiy narx {price:,.0f} so'm qilib belgilandi")
+        except:
+            messages.error(request, "Noto'g'ri narx!")
+        return redirect("group_detail", pk=group_pk)
+    return redirect("group_detail", pk=group_pk)
 
 
 # ---- Student Web Interface ----

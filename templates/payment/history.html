@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Tranzaksiyalar tarixi | Edu Tizim{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h2>Tranzaksiyalar tarixi</h2>
+        <span class="page-header-count">Barcha moliyaviy operatsiyalar</span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+        <a href="{% url 'payment_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> To'lov qilish</a>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+    <div class="card-body">
+        <form method="get" style="display: flex; gap: 12px; align-items: end;">
+            <div style="flex: 1;">
+                <label style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 4px; display: block;">O'quvchi bo'yicha filtrlash</label>
+                <select name="student_id" class="form-control" onchange="this.form.submit()" style="padding: 10px; border-radius: 8px; border: 1px solid #d1d5db; width: 100%; font-size: 13px;">
+                    <option value="">-- Barcha o'quvchilar --</option>
+                    {% for s in students %}
+                    <option value="{{ s.pk }}" {% if selected_student_id == s.pk %}selected{% endif %}>{{ s.first_name }} {{ s.last_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if selected_student_id %}
+            <a href="{% url 'payment_history' %}" class="btn btn-secondary" style="padding: 10px 16px;">Tozalash</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body" style="padding: 0;">
+        <div style="overflow-x: auto;">
+            <table class="table min">
+                <thead>
+                    <tr>
+                        <th>Sana</th>
+                        <th>O'quvchi</th>
+                        <th>Tur</th>
+                        <th>Summa</th>
+                        <th>Balans</th>
+                        <th>Guruh</th>
+                        <th>Izoh</th>
+                        <th>Kim tomonidan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transactions %}
+                    <tr>
+                        <td style="white-space: nowrap;">{{ t.created_at|date:"d.m.Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'student_profile' t.student.pk %}" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+                                {{ t.student.first_name }} {{ t.student.last_name }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if t.transaction_type == 'payment' %}
+                            <span style="color: #16a34a; font-weight: 500;"><i class="fas fa-arrow-up"></i> To'lov</span>
+                            {% elif t.transaction_type == 'lesson' %}
+                            <span style="color: #dc2626; font-weight: 500;"><i class="fas fa-arrow-down"></i> Dars</span>
+                            {% elif t.transaction_type == 'correction' %}
+                            <span style="color: #f59e0b; font-weight: 500;"><i class="fas fa-edit"></i> Tuzatish</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-weight: 600; {% if t.amount >= 0 %}color: #16a34a;{% else %}color: #dc2626;{% endif %}">
+                            {% if t.amount >= 0 %}+{% endif %}{{ t.amount|floatformat:0 }}
+                        </td>
+                        <td style="color: #64748b;">{{ t.balance_after|floatformat:0 }}</td>
+                        <td>{{ t.group.name|default:"-" }}</td>
+                        <td style="color: #64748b; font-size: 13px;">{{ t.description|default:"-" }}</td>
+                        <td style="color: #64748b; font-size: 13px;">{{ t.created_by|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="empty">Tranzaksiyalar mavjud emas</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

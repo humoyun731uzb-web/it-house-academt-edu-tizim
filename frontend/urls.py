@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from . import student_api
+from . import employee_api
 
 urlpatterns = [
     path("", views.login_view, name="login"),
@@ -43,6 +44,8 @@ urlpatterns = [
     path("students/<int:pk>/remove/", views.student_remove_from_group, name="student_remove_from_group"),
     path("students/<int:pk>/add-to-group/", views.student_add_to_group, name="student_add_to_group"),
     path("groups/<int:pk>/detail/", views.group_detail, name="group_detail"),
+    path("groups/<int:pk>/davomat/", views.group_davom, name="group_davom"),
+    path("groups/<int:pk>/history/", views.group_history, name="group_history"),
     path("groups/<int:pk>/export/excel/", views.group_detail_export_excel, name="group_detail_export_excel"),
     path("groups/<int:pk>/export/csv/", views.group_detail_export_csv, name="group_detail_export_csv"),
     path("groups/<int:pk>/attendance/", views.teacher_attendance_desktop, name="group_attendance_page"),
@@ -58,6 +61,9 @@ urlpatterns = [
     path("students/graduated/", views.graduated_students, name="graduated_students"),
     path("employees/", views.employee_list, name="employee_list"),
     path("employees/create/", views.employee_create, name="employee_create"),
+    path("employees/<int:pk>/profile/", views.employee_profile, name="employee_profile"),
+    path("employees/<int:pk>/update/", views.employee_update, name="employee_update"),
+    path("employees/<int:pk>/delete/", views.employee_delete, name="employee_delete"),
     path("positions/", views.position_list, name="position_list"),
     path("positions/create/", views.position_create, name="position_create"),
     path("positions/<int:pk>/update/", views.position_update, name="position_update"),
@@ -83,6 +89,23 @@ urlpatterns = [
     path("absence-reasons/create/", views.absence_reason_create, name="absence_reason_create"),
     path("absence-reasons/<int:pk>/update/", views.absence_reason_update, name="absence_reason_update"),
     path("absence-reasons/<int:pk>/delete/", views.absence_reason_delete, name="absence_reason_delete"),
+    # Employee / Admin API
+    path("api/employee/login/", employee_api.employee_login, name="employee_api_login"),
+    path("api/employee/logout/", employee_api.employee_logout, name="employee_api_logout"),
+    path("api/employee/me/", employee_api.me, name="employee_api_me"),
+    path("api/employee/employees/", employee_api.employee_list, name="employee_api_list"),
+    path("api/employee/employees/create/", employee_api.employee_create, name="employee_api_create"),
+    path("api/employee/employees/<int:pk>/", employee_api.employee_detail, name="employee_api_detail"),
+    path("api/employee/employees/<int:pk>/update/", employee_api.employee_update, name="employee_api_update"),
+    path("api/employee/employees/<int:pk>/delete/", employee_api.employee_delete, name="employee_api_delete"),
+    path("api/employee/my-groups/", employee_api.my_groups, name="employee_api_my_groups"),
+    path("api/employee/attendance/<int:group_id>/", employee_api.group_attendance, name="employee_api_attendance"),
+    path("api/employee/take-attendance/", employee_api.take_attendance, name="employee_api_take_attendance"),
+    path("api/employee/roles/", employee_api.roles_list, name="employee_api_roles"),
+    path("api/employee/positions/", employee_api.positions_list, name="employee_api_positions"),
+    path("api/employee/branches/", employee_api.branches_list, name="employee_api_branches"),
+    path("api/employee/teacher-dashboard/", employee_api.teacher_dashboard_api, name="employee_api_dashboard"),
+    path("api/employee/teacher-group/<int:pk>/", employee_api.teacher_group_detail_api, name="employee_api_group_detail"),
     # Student API
     path("api/telegram-webhook/", student_api.telegram_webhook, name="telegram_webhook"),
     path("api/student/send-code/", student_api.send_code, name="student_send_code"),
@@ -94,4 +117,12 @@ urlpatterns = [
     path("api/student/schedule/", student_api.schedule, name="student_schedule"),
     path("api/student/attendance-history/", student_api.attendance_history, name="student_attendance_history"),
     path("api/student/monthly-calendar/", student_api.monthly_calendar, name="student_monthly_calendar"),
+    path("api/student/balance/", student_api.student_balance_api, name="student_balance_api"),
+    path("api/student/transactions/", student_api.student_transactions_api, name="student_transactions_api"),
+    # Payment views
+    path("groups/<int:group_pk>/student-price/<int:student_pk>/", views.update_student_lesson_price, name="update_student_lesson_price"),
+    path("payments/create/", views.payment_create, name="payment_create"),
+    path("payments/history/", views.payment_history, name="payment_history"),
+    path("students/<int:pk>/balance/", views.student_balance_view, name="student_balance_view"),
+    path("settings/global-config/", views.global_config, name="global_config"),
 ]

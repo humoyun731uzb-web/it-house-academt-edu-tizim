@@ -10,7 +10,9 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.db.models import Count, Q
 from django.utils import timezone
-from .models import Student, Group, LessonTime, Attendance, VerificationCode, Employee
+from decimal import Decimal
+from datetime import timedelta
+from .models import Student, Group, LessonTime, Attendance, VerificationCode, Employee, StudentBalance, Transaction
 
 
 def generate_code():
@@ -220,12 +222,18 @@ def verify_code(request):
         has_password = student.user.has_usable_password()
 
     if student:
+        balance, _ = StudentBalance.objects.get_or_create(student=student, defaults={"balance": Decimal('0.00')})
+        debt = abs(balance.balance) if balance.balance < 0 else 0
         student_data = {
             "id": student.id,
             "first_name": student.first_name,
             "last_name": student.last_name,
             "phone": student.phone,
             "has_password": has_password,
+            "balance": float(balance.balance),
+            "balance_str": f"{balance.balance:,.0f} so'm",
+            "debt": float(debt),
+            "debt_str": f"{debt:,.0f} so'm" if debt else "0 so'm",
         }
 
     return JsonResponse({
@@ -330,6 +338,9 @@ def student_login(request):
             "teacher": f"{g.teacher.first_name} {g.teacher.last_name}" if g.teacher else "",
         })
 
+    balance, _ = StudentBalance.objects.get_or_create(student=student, defaults={"balance": Decimal('0.00')})
+    debt = abs(balance.balance) if balance.balance < 0 else 0
+
     return JsonResponse({
         "success": True,
         "token": token,
@@ -338,6 +349,10 @@ def student_login(request):
             "first_name": student.first_name,
             "last_name": student.last_name,
             "phone": student.phone,
+            "balance": float(balance.balance),
+            "balance_str": f"{balance.balance:,.0f} so'm",
+            "debt": float(debt),
+            "debt_str": f"{debt:,.0f} so'm" if debt else "0 so'm",
         },
         "groups": groups_data,
     })
@@ -366,6 +381,26 @@ def profile(request):
             "end_date": g.end_date.isoformat() if g.end_date else "",
         })
 
+    balance, _ = StudentBalance.objects.get_or_create(student=student, defaults={"balance": Decimal('0.00')})
+    debt = abs(balance.balance) if balance.balance < 0 else 0
+
+    recent_transactions = Transaction.objects.filter(student=student).select_related("group").order_by("-created_at")[:20]
+    transactions_data = []
+    for t in recent_transactions:
+        transactions_data.append({
+            "id": t.id,
+            "amount": float(t.amount),
+            "amount_str": f"{'+' if t.amount >= 0 else ''}{t.amount:,.0f} so'm",
+            "balance_after": float(t.balance_after),
+            "balance_after_str": f"{t.balance_after:,.0f} so'm",
+            "type": t.transaction_type,
+            "type_display": t.get_transaction_type_display(),
+            "group": t.group.name if t.group else "",
+            "description": t.description or "",
+            "created_by": t.created_by or "",
+            "created_at": t.created_at.astimezone(timezone.get_current_timezone()).strftime("%d.%m.%Y %H:%M"),
+        })
+
     return JsonResponse({
         "student": {
             "id": student.id,
@@ -377,8 +412,13 @@ def profile(request):
             "father_phone": student.father_phone or "",
             "mother_full_name": student.mother_full_name or "",
             "mother_phone": student.mother_phone or "",
+            "balance": float(balance.balance),
+            "balance_str": f"{balance.balance:,.0f} so'm",
+            "debt": float(debt),
+            "debt_str": f"{debt:,.0f} so'm" if debt else "0 so'm",
         },
         "groups": groups_data,
+        "transactions": transactions_data,
     })
 
 
@@ -554,3 +594,39 @@ def monthly_calendar(request):
         "lesson_dates": lesson_dates,
         "attendance_map": attendance_map,
     })
+
+
+@student_required
+def student_balance_api(request):
+    student = request.student
+    balance, _ = StudentBalance.objects.get_or_create(student=student, defaults={"balance": Decimal('0.00')})
+    debt = abs(balance.balance) if balance.balance < 0 else 0
+    return JsonResponse({
+        "balance": float(balance.balance),
+        "debt": float(debt),
+        "balance_str": f"{balance.balance:,.0f} so'm",
+        "debt_str": f"{debt:,.0f} so'm" if debt else "0 so'm",
+    })
+
+
+@student_required
+def student_transactions_api(request):
+    student = request.student
+    limit = int(request.GET.get("limit", 50))
+    transactions = Transaction.objects.filter(student=student).select_related("group").order_by("-created_at")[:limit]
+    data = []
+    for t in transactions:
+        data.append({
+            "id": t.id,
+            "amount": float(t.amount),
+            "amount_str": f"{'+' if t.amount >= 0 else ''}{t.amount:,.0f} so'm",
+            "balance_after": float(t.balance_after),
+            "balance_after_str": f"{t.balance_after:,.0f} so'm",
+            "type": t.transaction_type,
+            "type_display": t.get_transaction_type_display(),
+            "group": t.group.name if t.group else "",
+            "description": t.description or "",
+            "created_by": t.created_by or "",
+            "created_at": t.created_at.astimezone(timezone.get_current_timezone()).strftime("%d.%m.%Y %H:%M"),
+        })
+    return JsonResponse({"transactions": data})

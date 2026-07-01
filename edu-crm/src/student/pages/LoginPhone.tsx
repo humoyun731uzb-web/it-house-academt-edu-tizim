@@ -163,9 +163,9 @@ export default function LoginPhone() {
         {/* Footer */}
         <div className="flex items-center justify-center gap-2 mt-8 shrink-0">
           <ShieldCheck size={14} className="text-gray-300 shrink-0" />
-          <p className="text-gray-300 text-[11px] font-medium text-center leading-relaxed">
+          <p className="text-gedium text-center leading-relaxed">
             Ma'lumotlaringiz xavfsiz saqlanadi va uchinchi shaxslarga berilmaydi
-          </p>
+          </p>                                                                                                                 
         </div>
 
       </div>

@@ -25,6 +25,7 @@
                     <th>Telefon</th>
                     <th>Vazifasi</th>
                     <th>Rol</th>
+                    <th>Guruhlar</th>
                     <th>Filiallar</th>
                     <th>Holat</th>
                     <th>Amallar</th>
@@ -44,7 +45,9 @@
                             </div>
                             {% endif %}
                             <div>
-                                <strong>{{ emp.first_name }} {{ emp.last_name }}</strong>
+                                <a href="{% url 'employee_profile' emp.pk %}" style="color: inherit; text-decoration: none;">
+                                    <strong>{{ emp.first_name }} {{ emp.last_name }}</strong>
+                                </a>
                                 {% if emp.user %}
                                 <div style="font-size: 0.75rem; color: #16a34a;"><i class="fas fa-check-circle"></i> Login mavjud</div>
                                 {% endif %}
@@ -54,6 +57,7 @@
                     <td>+998 {{ emp.phone }}</td>
                     <td>{% if emp.position %}<span class="badge badge-blue">{{ emp.position.name }}</span>{% else %}<span style="color: #94a3b8;">-</span>{% endif %}</td>
                     <td>{% if emp.role %}<span class="badge badge-purple">{{ emp.role.name }}</span>{% else %}<span style="color: #94a3b8;">-</span>{% endif %}</td>
+                    <td><span class="badge" style="background:#e0f2fe;color:#0369a1;">{{ emp.group_count }} ta</span></td>
                     <td>
                         {% for b in emp.branches.all %}
                         <span class="badge badge-green" style="margin: 1px;">{{ b.name }}</span>
@@ -69,12 +73,13 @@
                         {% endif %}
                     </td>
                     <td class="actions">
-                        <a href="#" class="btn btn-sm btn-warning" title="Tahrirlash"><i class="fas fa-edit"></i></a>
-                        <a href="#" class="btn btn-sm btn-danger" title="O'chirish"><i class="fas fa-trash"></i></a>
+                        <a href="{% url 'employee_profile' emp.pk %}" class="btn btn-sm btn-info" title="Profil"><i class="fas fa-eye"></i></a>
+                        <a href="{% url 'employee_update' emp.pk %}" class="btn btn-sm btn-warning" title="Tahrirlash"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'employee_delete' emp.pk %}" class="btn btn-sm btn-danger" title="O'chirish"><i class="fas fa-trash"></i></a>
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="8" class="empty">Hozircha xodimlar mavjud emas</td></tr>
+                <tr><td colspan="9" class="empty">Hozircha xodimlar mavjud emas</td></tr>
                 {% endfor %}
             </tbody>
         </table>

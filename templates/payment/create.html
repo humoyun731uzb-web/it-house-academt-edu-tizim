@@ -1,0 +1,554 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}To'lov qilish | Edu Tizim{% endblock %}
+{% block content %}
+<style>
+  .payment-search-wrap {
+    position: relative;
+    max-width: 500px;
+    margin: 0 auto 24px;
+  }
+  .payment-search-wrap i {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 1rem;
+    pointer-events: none;
+  }
+  .payment-search {
+    width: 100%;
+    height: 48px;
+    padding: 0 16px 0 44px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-family: var(--font);
+    color: var(--text);
+    background: white;
+    transition: all 0.2s;
+    outline: none;
+  }
+  .payment-search:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+  }
+  .payment-student-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 12px;
+  }
+  .payment-student-card {
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .payment-student-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(37,99,235,0.1);
+    transform: translateY(-1px);
+  }
+  .payment-student-card .avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: var(--primary-bg);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .payment-student-card .info {
+    flex: 1;
+    min-width: 0;
+  }
+  .payment-student-card .info .name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .payment-student-card .info .phone {
+    font-size: 0.82rem;
+    color: var(--text-light);
+    margin-top: 2px;
+  }
+  .payment-student-card .info .meta {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .payment-student-card .info .meta span {
+    font-size: 0.75rem;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-weight: 500;
+  }
+  .badge-balance-positive { background: #dcfce7; color: #16a34a; }
+  .badge-balance-negative { background: #fee2e2; color: #dc2626; }
+  .badge-zero { background: #f1f5f9; color: #64748b; }
+  .badge-remaining { background: #fef3c7; color: #d97706; }
+  .badge-done { background: #dbeafe; color: #1d4ed8; }
+  .no-results {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-light);
+  }
+  .no-results i {
+    font-size: 3rem;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+  .pay-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15,23,42,0.5);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .pay-modal-overlay.show { display: flex; }
+  .pay-modal {
+    background: white;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 520px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+    animation: modalIn 0.2s ease;
+  }
+  @keyframes modalIn {
+    from { transform: scale(0.95) translateY(10px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  .pay-modal-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .pay-modal-header h3 { font-size: 1.05rem; font-weight: 700; }
+  .pay-modal-close {
+    width: 32px; height: 32px; border: none;
+    background: #f1f5f9; border-radius: 8px; cursor: pointer;
+    font-size: 1.2rem; color: var(--text-light);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .pay-modal-close:hover { background: #e2e8f0; color: var(--text); }
+  .pay-modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+  .pay-student-info {
+    background: #f8fafc; border-radius: 12px; padding: 16px;
+    margin-bottom: 16px; display: grid;
+    grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .pay-student-info .field { display: flex; flex-direction: column; gap: 2px; }
+  .pay-student-info .field .label {
+    font-size: 0.7rem; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .pay-student-info .field .value { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+  .pay-student-info .field .value.negative { color: var(--danger); }
+  .pay-student-info .field .value.positive { color: var(--success); }
+  .pay-form-group { margin-bottom: 16px; }
+  .pay-form-group label {
+    display: block; font-size: 0.85rem; font-weight: 600;
+    color: var(--text); margin-bottom: 6px;
+  }
+  .pay-form-group input, .pay-form-group textarea {
+    width: 100%; padding: 12px 14px;
+    border: 2px solid var(--border); border-radius: 10px;
+    font-size: 0.9rem; font-family: var(--font);
+    transition: all 0.2s; background: #f8fafc;
+    color: var(--text); outline: none;
+  }
+  .pay-form-group input:focus, .pay-form-group textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+    background: white;
+  }
+  .pay-remaining-info {
+    background: #fffbeb; border: 1px solid #fde68a;
+    border-radius: 10px; padding: 12px 16px;
+    font-size: 0.85rem; color: #92400e;
+    margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+  }
+  .pay-remaining-info i { font-size: 1.1rem; color: #f59e0b; }
+  .pay-remaining-info.zero {
+    background: #f0fdf4; border-color: #bbf7d0; color: #166534;
+  }
+  .pay-remaining-info.zero i { color: #22c55e; }
+  .pay-error {
+    background: #fef2f2; border: 1px solid #fecaca;
+    border-radius: 10px; padding: 12px 16px;
+    font-size: 0.85rem; color: #dc2626;
+    margin-bottom: 16px; display: none; align-items: center; gap: 8px;
+  }
+  .pay-error i { font-size: 1.1rem; color: #dc2626; }
+  .pay-error.show { display: flex; }
+  .pay-submit-btn {
+    width: 100%; padding: 14px;
+    background: var(--primary); color: white;
+    border: none; border-radius: 10px;
+    font-size: 1rem; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; font-family: var(--font);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .pay-submit-btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+  }
+  .pay-submit-btn:disabled {
+    opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none;
+  }
+  .receipt-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15,23,42,0.5); backdrop-filter: blur(4px);
+    z-index: 1100; align-items: center; justify-content: center; padding: 20px;
+  }
+  .receipt-overlay.show { display: flex; }
+  .receipt {
+    background: white; border-radius: 16px; width: 100%;
+    max-width: 400px; box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+    animation: modalIn 0.2s ease; overflow: hidden;
+  }
+  .receipt-inner { padding: 32px 28px 24px; }
+  .receipt-header {
+    text-align: center; margin-bottom: 20px;
+    padding-bottom: 16px; border-bottom: 2px dashed var(--border);
+  }
+  .receipt-header .logo-text {
+    font-size: 1.3rem; font-weight: 800; color: var(--primary); letter-spacing: 1px;
+  }
+  .receipt-header .receipt-title {
+    font-size: 1.1rem; font-weight: 700; color: var(--text); margin-top: 4px;
+  }
+  .receipt-header .receipt-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+  .receipt-body { margin-bottom: 16px; }
+  .receipt-row {
+    display: flex; justify-content: space-between;
+    padding: 8px 0; font-size: 0.88rem; border-bottom: 1px solid #f1f5f9;
+  }
+  .receipt-row:last-child { border-bottom: none; }
+  .receipt-row .label { color: var(--text-light); }
+  .receipt-row .value { font-weight: 600; color: var(--text); text-align: right; }
+  .receipt-amount {
+    text-align: center; padding: 16px 0; margin: 12px 0;
+    background: #f0fdf4; border-radius: 12px;
+  }
+  .receipt-amount .amount-label { font-size: 0.8rem; color: var(--text-light); }
+  .receipt-amount .amount-value {
+    font-size: 1.8rem; font-weight: 800; color: #16a34a; margin-top: 4px;
+  }
+  .receipt-footer {
+    text-align: center; padding-top: 16px;
+    border-top: 2px dashed var(--border);
+    font-size: 0.78rem; color: var(--text-muted); font-style: italic;
+  }
+  .receipt-actions {
+    display: flex; gap: 8px; padding: 16px 28px 24px;
+  }
+  .receipt-actions .btn { flex: 1; justify-content: center; padding: 12px; }
+  @media (max-width: 640px) {
+    .payment-student-list { grid-template-columns: 1fr; }
+    .pay-student-info { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="page-header">
+  <div class="page-header-left">
+    <h2>To'lov qilish</h2>
+    <span class="page-header-count">{{ admin_name }} — O'quvchi balansiga pul qo'shish</span>
+  </div>
+</div>
+
+<div class="payment-search-wrap">
+  <i class="fas fa-search"></i>
+  <input type="text" class="payment-search" id="studentSearch" placeholder="Ism, familiya yoki telefon raqam bilan qidirish..." oninput="filterStudents()">
+</div>
+
+<div class="payment-student-list" id="studentList"></div>
+<div class="no-results" id="noResults" style="display:none;">
+  <i class="fas fa-user-slash"></i>
+  <p>Hech qanday o'quvchi topilmadi</p>
+</div>
+
+<div class="pay-modal-overlay" id="paymentModal" onclick="if(event.target===this)closePaymentModal()">
+  <div class="pay-modal">
+    <div class="pay-modal-header">
+      <h3><i class="fas fa-coins" style="color:var(--primary)"></i> To'lov ma'lumotlari</h3>
+      <button class="pay-modal-close" onclick="closePaymentModal()">&times;</button>
+    </div>
+    <div class="pay-modal-body">
+      <div class="pay-student-info" id="studentInfo"></div>
+      <div class="pay-remaining-info" id="remainingInfo"></div>
+      <div class="pay-error" id="payError"><i class="fas fa-exclamation-circle"></i> <span id="payErrorText"></span></div>
+      <div class="pay-form-group">
+        <label>To'lov summasi (so'm)</label>
+        <input type="number" id="payAmount" placeholder="Masalan: 50000" min="0">
+      </div>
+      <div class="pay-form-group">
+        <label>Izoh (ixtiyoriy)</label>
+        <textarea id="payDescription" rows="2" placeholder="To'lov haqida izoh..."></textarea>
+      </div>
+      <button class="pay-submit-btn" id="paySubmit" onclick="submitPayment()">
+        <i class="fas fa-check"></i> To'lovni tasdiqlash
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="receipt-overlay" id="receiptModal" onclick="if(event.target===this)closeReceipt()">
+  <div class="receipt">
+    <div class="receipt-inner">
+      <div class="receipt-header">
+        <div class="logo-text">IT HOUSE</div>
+        <div class="receipt-title">TO'LOV CHEKI</div>
+        <div class="receipt-sub">Akademiya</div>
+      </div>
+      <div class="receipt-body" id="receiptBody"></div>
+      <div class="receipt-footer">Chekni tashlab yubormang!</div>
+    </div>
+    <div class="receipt-actions">
+      <button class="btn btn-secondary" onclick="closeReceipt()"><i class="fas fa-times"></i> Yopish</button>
+      <button class="btn btn-primary" onclick="printReceipt()"><i class="fas fa-print"></i> Chop etish</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  var students = {{ students_json|safe }};
+  var selectedStudent = null;
+  var monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+  var now = new Date();
+  var currentMonth = monthNames[now.getMonth()];
+
+  function getCookie(name) {
+    var value = '; ' + document.cookie;
+    var parts = value.split('; ' + name + '=');
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+  }
+
+  function renderStudents(list) {
+    var container = document.getElementById('studentList');
+    var noResults = document.getElementById('noResults');
+    if (list.length === 0) {
+      container.innerHTML = '';
+      noResults.style.display = 'block';
+      return;
+    }
+    noResults.style.display = 'none';
+    var html = '';
+    for (var i = 0; i < list.length; i++) {
+      var s = list[i];
+      var balanceClass = s.balance > 0 ? 'badge-balance-positive' : (s.balance < 0 ? 'badge-balance-negative' : 'badge-zero');
+      var balanceText = s.balance > 0 ? '+' + formatNum(s.balance) : formatNum(s.balance);
+      var remainingText = s.remaining_month_payment > 0 ? currentMonth + ' oyi: ' + formatNum(s.remaining_month_payment) + ' so\'m' : currentMonth + ' oyi: 0 so\'m';
+      var remainingBadge = s.remaining_month_payment > 0 ? 'badge-remaining' : 'badge-done';
+      var initial = (s.first_name.charAt(0) + s.last_name.charAt(0)).toUpperCase();
+      html += '<div class="payment-student-card" onclick="selectStudent(' + s.id + ')">' +
+        '<div class="avatar">' + initial + '</div>' +
+        '<div class="info">' +
+        '<div class="name">' + s.first_name + ' ' + s.last_name + '</div>' +
+        '<div class="phone">+998 ' + s.phone + '</div>' +
+        '<div class="meta">' +
+        '<span class="' + balanceClass + '">Balans: ' + balanceText + ' so\'m</span>' +
+        '<span class="' + remainingBadge + '">' + remainingText + '</span>' +
+        '</div></div></div>';
+    }
+    container.innerHTML = html;
+  }
+
+  function filterStudents() {
+    var q = document.getElementById('studentSearch').value.toLowerCase().trim();
+    if (!q) { renderStudents(students); return; }
+    var filtered = [];
+    for (var i = 0; i < students.length; i++) {
+      var s = students[i];
+      var fullName = (s.first_name + ' ' + s.last_name).toLowerCase();
+      var phone = s.phone.replace(/\s/g, '');
+      var qClean = q.replace(/\s/g, '');
+      if (fullName.indexOf(q) !== -1 || phone.indexOf(qClean) !== -1) filtered.push(s);
+    }
+    renderStudents(filtered);
+  }
+
+  function selectStudent(id) {
+    for (var i = 0; i < students.length; i++) {
+      if (students[i].id === id) { selectedStudent = students[i]; break; }
+    }
+    if (!selectedStudent) return;
+    document.getElementById('payError').classList.remove('show');
+    var info = document.getElementById('studentInfo');
+    var balanceClass = selectedStudent.balance > 0 ? 'positive' : (selectedStudent.balance < 0 ? 'negative' : '');
+    var groupsHtml = '';
+    if (selectedStudent.groups.length > 0) {
+      groupsHtml = '<div class="field"><span class="label">Guruhlar</span><span class="value">';
+      for (var j = 0; j < selectedStudent.groups.length; j++) {
+        groupsHtml += selectedStudent.groups[j].name + ' (' + formatNum(selectedStudent.groups[j].price) + ' so\'m)';
+        if (j < selectedStudent.groups.length - 1) groupsHtml += ', ';
+      }
+      groupsHtml += '</span></div>';
+    }
+    info.innerHTML =
+      '<div class="field"><span class="label">Ism familiya</span><span class="value">' + selectedStudent.first_name + ' ' + selectedStudent.last_name + '</span></div>' +
+      '<div class="field"><span class="label">Telefon</span><span class="value">+998 ' + selectedStudent.phone + '</span></div>' +
+      '<div class="field"><span class="label">Joriy balans</span><span class="value ' + balanceClass + '">' + formatNum(selectedStudent.balance) + ' so\'m</span></div>' +
+      groupsHtml;
+
+    var remaining = document.getElementById('remainingInfo');
+    if (selectedStudent.remaining_month_payment > 0) {
+      remaining.className = 'pay-remaining-info';
+      remaining.innerHTML = '<i class="fas fa-info-circle"></i> ' + currentMonth + ' oyi oxirigacha yana <strong>' + formatNum(selectedStudent.remaining_month_payment) + ' so\'m</strong> to\'lov qilishingiz kerak';
+    } else {
+      remaining.className = 'pay-remaining-info zero';
+      remaining.innerHTML = '<i class="fas fa-check-circle"></i> ' + currentMonth + ' oyi uchun to\'lanadigan summa: <strong>0 so\'m</strong>';
+    }
+
+    document.getElementById('payAmount').value = '';
+    document.getElementById('payDescription').value = '';
+    document.getElementById('paySubmit').disabled = false;
+    document.getElementById('paySubmit').innerHTML = '<i class="fas fa-check"></i> To\'lovni tasdiqlash';
+    document.getElementById('paymentModal').classList.add('show');
+  }
+
+  function closePaymentModal() {
+    document.getElementById('paymentModal').classList.remove('show');
+    document.getElementById('payError').classList.remove('show');
+    selectedStudent = null;
+  }
+
+  function showError(msg) {
+    document.getElementById('payErrorText').textContent = msg;
+    document.getElementById('payError').classList.add('show');
+  }
+
+  function submitPayment() {
+    document.getElementById('payError').classList.remove('show');
+    var amount = document.getElementById('payAmount').value;
+    var description = document.getElementById('payDescription').value;
+    if (!amount || parseFloat(amount) <= 0) {
+      showError('Iltimos, to\'lov summasini kiriting!');
+      return;
+    }
+    var btn = document.getElementById('paySubmit');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Jarayonda...';
+
+    var formData = new FormData();
+    formData.append('student_id', selectedStudent.id);
+    formData.append('amount', amount);
+    formData.append('description', description);
+
+    fetch('{% url "payment_create" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      body: formData,
+    })
+      .then(function(r) {
+        if (!r.ok) {
+          return r.text().then(function(text) { throw new Error(text || 'Server xatolik qaytardi'); });
+        }
+        return r.json();
+      })
+      .then(function(data) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> To\'lovni tasdiqlash';
+        if (data.success) {
+          closePaymentModal();
+          showReceipt(data);
+          updateStudentBalance(selectedStudent.id, parseFloat(amount));
+        } else {
+          showError(data.error || 'Xatolik yuz berdi');
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-check"></i> To\'lovni tasdiqlash';
+        }
+      })
+      .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> To\'lovni tasdiqlash';
+        showError(err.message || 'Xatolik yuz berdi. Qaytadan urinib ko\'ring.');
+      });
+  }
+
+  function updateStudentBalance(id, amount) {
+    for (var i = 0; i < students.length; i++) {
+      if (students[i].id === id) {
+        students[i].balance += amount;
+        students[i].remaining_month_payment = Math.max(0, students[i].remaining_month_payment - amount);
+        break;
+      }
+    }
+    filterStudents();
+  }
+
+  function showReceipt(data) {
+    document.getElementById('receiptBody').innerHTML =
+      '<div class="receipt-amount">' +
+      '<div class="amount-label">To\'lov summasi</div>' +
+      '<div class="amount-value">' + formatNum(data.amount) + ' so\'m</div>' +
+      '</div>' +
+      '<div class="receipt-row"><span class="label">O\'quvchi</span><span class="value">' + data.student_name + '</span></div>' +
+      '<div class="receipt-row"><span class="label">Admin</span><span class="value">' + data.admin_name + '</span></div>' +
+      '<div class="receipt-row"><span class="label">Sana</span><span class="value">' + data.date + '</span></div>' +
+      '<div class="receipt-row"><span class="label">Balans</span><span class="value">' + formatNum(data.balance) + ' so\'m</span></div>';
+    document.getElementById('receiptModal').classList.add('show');
+  }
+
+  function closeReceipt() { document.getElementById('receiptModal').classList.remove('show'); }
+
+  function printReceipt() {
+    var content = document.querySelector('.receipt').cloneNode(true);
+    var actions = content.querySelector('.receipt-actions');
+    if (actions) actions.style.display = 'none';
+    var w = window.open('', '', 'width=400,height=600');
+    w.document.write(
+      '<html><head><title>To\'lov cheki</title>' +
+      '<style>' +
+      'body{font-family:"Segoe UI",system-ui,sans-serif;padding:20px;margin:0}' +
+      '.receipt{max-width:380px;margin:0 auto}' +
+      '.receipt-inner{padding:24px}' +
+      '.receipt-header{text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px dashed #e2e8f0}' +
+      '.receipt-header .logo-text{font-size:1.3rem;font-weight:800;color:#2563eb;letter-spacing:1px}' +
+      '.receipt-header .receipt-title{font-size:1.1rem;font-weight:700;color:#0f172a;margin-top:4px}' +
+      '.receipt-header .receipt-sub{font-size:0.8rem;color:#64748b}' +
+      '.receipt-amount{text-align:center;padding:16px 0;margin:12px 0;background:#f0fdf4;border-radius:12px}' +
+      '.receipt-amount .amount-label{font-size:0.8rem;color:#64748b}' +
+      '.receipt-amount .amount-value{font-size:1.8rem;font-weight:800;color:#16a34a;margin-top:4px}' +
+      '.receipt-row{display:flex;justify-content:space-between;padding:8px 0;font-size:0.88rem;border-bottom:1px solid #f1f5f9}' +
+      '.receipt-row .label{color:#64748b}' +
+      '.receipt-row .value{font-weight:600;color:#0f172a;text-align:right}' +
+      '.receipt-footer{text-align:center;padding-top:12px;border-top:2px dashed #e2e8f0;font-size:0.78rem;color:#94a3b8;font-style:italic}' +
+      '@media print{body{padding:0}@page{margin:10mm}}' +
+      '</style></head><body>' + content.innerHTML + '</body></html>'
+    );
+    w.document.close();
+    setTimeout(function() { w.print(); }, 300);
+  }
+
+  function formatNum(n) { return Number(n).toLocaleString('uz-UZ'); }
+
+  renderStudents(students);
+</script>
+{% endblock %}

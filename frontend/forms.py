@@ -40,10 +40,16 @@ class GroupForm(forms.ModelForm):
         widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}, format="%Y-%m-%d"),
         label="Tugash sanasi",
     )
+    lesson_price = forms.DecimalField(
+        required=False,
+        max_digits=12, decimal_places=2,
+        widget=forms.NumberInput(attrs={"class": "form-control", "placeholder": "Masalan: 40000"}),
+        label="1 dars narxi (so'm)",
+    )
 
     class Meta:
         model = Group
-        fields = ["name", "status", "course", "education_type", "day_type", "room", "teacher", "telegram_link", "start_date", "end_date"]
+        fields = ["name", "status", "course", "education_type", "day_type", "room", "teacher", "telegram_link", "start_date", "end_date", "lesson_price"]
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Guruh nomini kiriting"}),
             "status": forms.Select(attrs={"class": "form-control"}),
@@ -213,7 +219,7 @@ class LessonTimeForm(forms.ModelForm):
                 group__room=self.group.room,
                 start_time__lt=end_time,
                 end_time__gt=start_time,
-            ).exclude(group=self.group).select_related("group")
+            ).exclude(group=self.group).exclude(group__status__in=["arxivlangan", "yopilgan"]).select_related("group")
             for lt in room_conflicts:
                 lt_days = set(d.strip().lower() for d in lt.days.split(",") if d.strip())
                 if not new_days.isdisjoint(lt_days):
@@ -228,7 +234,7 @@ class LessonTimeForm(forms.ModelForm):
                 group__teacher=self.group.teacher,
                 start_time__lt=end_time,
                 end_time__gt=start_time,
-            ).exclude(group=self.group).select_related("group")
+            ).exclude(group=self.group).exclude(group__status__in=["arxivlangan", "yopilgan"]).select_related("group")
             for lt in teacher_conflicts:
                 lt_days = set(d.strip().lower() for d in lt.days.split(",") if d.strip())
                 if not new_days.isdisjoint(lt_days):

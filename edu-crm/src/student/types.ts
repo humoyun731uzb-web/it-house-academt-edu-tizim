@@ -8,6 +8,25 @@ export interface StudentProfile {
   father_phone?: string
   mother_full_name?: string
   mother_phone?: string
+  balance?: number
+  balance_str?: string
+  debt?: number
+  debt_str?: string
+  has_password?: boolean
+}
+
+export interface Transaction {
+  id: number
+  amount: number
+  amount_str: string
+  balance_after: number
+  balance_after_str: string
+  type: string
+  type_display: string
+  group: string
+  description: string
+  created_by: string
+  created_at: string
 }
 
 export interface GroupInfo {

@@ -1,5 +1,6 @@
 from django.db import models
 from datetime import date, timedelta, datetime
+from decimal import Decimal
 
 
 class Course(models.Model):
@@ -72,6 +73,7 @@ class Group(models.Model):
     teacher = models.ForeignKey(
         "Employee", on_delete=models.SET_NULL, null=True, blank=True, related_name="teacher_groups", verbose_name="O'qituvchi"
     )
+    lesson_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="1 dars narxi")
     start_date = models.DateField(null=True, blank=True, verbose_name="Boshlanish sanasi")
     end_date = models.DateField(null=True, blank=True, verbose_name="Tugash sanasi")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -228,6 +230,22 @@ class StudentLog(models.Model):
         ordering = ["-created_at"]
 
 
+class GroupLog(models.Model):
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="logs", verbose_name="Guruh")
+    action = models.CharField(max_length=50, verbose_name="Harakat")
+    description = models.TextField(verbose_name="Tavsif")
+    created_by = models.CharField(max_length=255, blank=True, default="", verbose_name="Kim tomonidan")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.group.name} - {self.action}"
+
+    class Meta:
+        verbose_name = "Guruh tarixi"
+        verbose_name_plural = "Guruh tarixlari"
+        ordering = ["-created_at"]
+
+
 class Branch(models.Model):
     name = models.CharField(max_length=255, verbose_name="Filial nomi")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -315,7 +333,6 @@ class Attendance(models.Model):
         PRESENT = "present", "Keldi"
         ABSENT = "absent", "Kelmadi"
         EXCUSED = "excused", "Sababli kelmadi"
-        BOSH = "boshqoldi", "Davom olish"
 
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="attendances", verbose_name="Guruh")
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="attendances", verbose_name="O'quvchi")
@@ -371,3 +388,77 @@ class VerificationCode(models.Model):
 
     def __str__(self):
         return f"{self.phone} - {self.code}"
+
+
+class StudentLessonPrice(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="lesson_prices", verbose_name="O'quvchi")
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="student_lesson_prices", verbose_name="Guruh")
+    lesson_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Shaxsiy dars narxi")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "O'quvchi shaxsiy narxi"
+        verbose_name_plural = "O'quvchi shaxsiy narxlari"
+        unique_together = ("student", "group")
+
+    def __str__(self):
+        return f"{self.student} - {self.group} - {self.lesson_price}"
+
+
+class StudentBalance(models.Model):
+    student = models.OneToOneField(Student, on_delete=models.CASCADE, related_name="balance", verbose_name="O'quvchi")
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Balans")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "O'quvchi balansi"
+        verbose_name_plural = "O'quvchi balanslari"
+
+    def __str__(self):
+        return f"{self.student} - {self.balance} so'm"
+
+
+class Transaction(models.Model):
+    class Type(models.TextChoices):
+        PAYMENT = "payment", "To'lov"
+        LESSON = "lesson", "Dars uchun yechildi"
+        CORRECTION = "correction", "Tuzatish"
+
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="transactions", verbose_name="O'quvchi")
+    amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Summa")
+    balance_after = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Operatsiyadan keyingi balans")
+    transaction_type = models.CharField(max_length=20, choices=Type.choices, verbose_name="Operatsiya turi")
+    group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name="transactions", verbose_name="Guruh")
+    attendance = models.ForeignKey("Attendance", on_delete=models.SET_NULL, null=True, blank=True, related_name="transactions", verbose_name="Davomat")
+    description = models.TextField(blank=True, null=True, verbose_name="Izoh")
+    created_by = models.CharField(max_length=255, blank=True, default="", verbose_name="Kim tomonidan")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Tranzaksiya"
+        verbose_name_plural = "Tranzaksiyalar"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.student} - {self.amount} ({self.get_transaction_type_display()})"
+
+
+class GlobalConfig(models.Model):
+    deduct_absent = models.BooleanField(default=False, verbose_name="Sababsiz kelmaganlardan pul yechish")
+    deduct_excused = models.BooleanField(default=False, verbose_name="Sababli kelmaganlardan pul yechish")
+
+    class Meta:
+        verbose_name = "Global sozlama"
+        verbose_name_plural = "Global sozlamalar"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_instance(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f"Global sozlamalar (abs={self.deduct_absent}, exc={self.deduct_excused})"

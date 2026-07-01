@@ -5,6 +5,7 @@ import type {
   AttendanceStats,
   MonthlyCalendar,
   ScheduleDay,
+  Transaction,
 } from "./types"
 
 const BASE = import.meta.env.DEV ? "/api" : "https://it-house-academt-edu-tizim-production.up.railway.app/api"
@@ -36,6 +37,7 @@ export const api = {
       token: string
       student: StudentProfile | null
       has_password: boolean
+      transactions?: Transaction[]
     }>("/verify-code/", {
       method: "POST",
       body: JSON.stringify({ phone, code }),
@@ -55,6 +57,7 @@ export const api = {
       token: string
       student: StudentProfile
       groups: GroupInfo[]
+      transactions?: Transaction[]
     }>("/login/", {
       method: "POST",
       body: JSON.stringify({ phone, password }),
@@ -62,7 +65,7 @@ export const api = {
   },
 
   profile() {
-    return request<{ student: StudentProfile; groups: GroupInfo[] }>("/profile/")
+    return request<{ student: StudentProfile; groups: GroupInfo[]; transactions: Transaction[] }>("/profile/")
   },
 
   todayClasses() {

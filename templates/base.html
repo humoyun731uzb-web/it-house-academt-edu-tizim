@@ -99,9 +99,13 @@
                 </a>
 
                 <div class="nav-section-label">Moliya va nazorat</div>
-                <a href="#" class="nav-item">
+                <a href="{% url 'payment_create' %}" class="nav-item {% if 'payment' in request.resolver_match.url_name %}active{% endif %}">
                     <i class="fas fa-coins"></i>
-                    <span>Moliya</span>
+                    <span>To'lov qilish</span>
+                </a>
+                <a href="{% url 'payment_history' %}" class="nav-item {% if 'payment' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-history"></i>
+                    <span>Tranzaksiyalar</span>
                 </a>
                 <a href="#" class="nav-item">
                     <i class="fas fa-shield-alt"></i>
@@ -155,9 +159,9 @@
                 </a>
 
                 <div class="nav-section-label">Sozlamalar</div>
-                <a href="#" class="nav-item">
+                <a href="{% url 'global_config' %}" class="nav-item">
                     <i class="fas fa-sliders-h"></i>
-                    <span>Sozlamalar</span>
+                    <span>Pul yechish sozlamalari</span>
                 </a>
             </nav>
             <div class="sidebar-footer">

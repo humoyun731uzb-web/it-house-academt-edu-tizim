@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load dict_filters %}
 {% block title %}{{ student.first_name }} {{ student.last_name }} | Edu Tizim{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -78,6 +79,35 @@
             </div>
         </div>
     </div>
+    <!-- BALANCE CARD -->
+    <div>
+        <div class="card" style="margin-bottom: 24px;">
+            <div class="card-header">
+                <h3><i class="fas fa-wallet"></i> Balans</h3>
+            </div>
+            <div class="card-body">
+                {% with bal=student|get_balance %}
+                <div style="text-align: center; padding: 16px 0;">
+                    <div style="font-size: 13px; color: #64748b; margin-bottom: 4px;">Joriy balans</div>
+                    <div style="font-size: 32px; font-weight: 800; {% if bal and bal.balance < 0 %}color: #dc2626;{% else %}color: #16a34a;{% endif %}">
+                        {% if bal %}{{ bal.balance|floatformat:0 }}{% else %}0{% endif %}
+                        <span style="font-size: 14px; font-weight: 500;">so'm</span>
+                    </div>
+                    {% if bal and bal.balance < 0 %}
+                    <div style="color: #dc2626; font-size: 13px; margin-top: 4px;">
+                        <i class="fas fa-exclamation-triangle"></i> Qarzdorlik: {{ bal.balance|floatformat:0 }} so'm
+                    </div>
+                    {% endif %}
+                </div>
+                {% endwith %}
+                <div style="display: flex; gap: 8px; justify-content: center;">
+                    <a href="{% url 'student_balance_view' student.pk %}" class="btn btn-primary" style="font-size: 13px; padding: 8px 16px;">
+                        <i class="fas fa-history"></i> Tranzaksiyalar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
     {% if attendance_history %}
     <div>
         <div class="card">
@@ -102,8 +132,6 @@
                             <td>
                                 {% if a.status == 'present' %}
                                 <span style="color:#22c55e;font-weight:500;"><i class="fas fa-check-circle"></i> Keldi</span>
-                                {% elif a.status == 'boshqoldi' %}
-                                <span style="color:#64748b;font-weight:500;"><i class="fas fa-forward"></i> Boshqoldi</span>
                                 {% elif a.status == 'absent' %}
                                 <span style="color:#ef4444;font-weight:500;"><i class="fas fa-times-circle"></i> Kelmadi</span>
                                 {% elif a.status == 'excused' %}
