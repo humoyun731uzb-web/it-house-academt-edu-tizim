@@ -36,10 +36,12 @@ CSRF_TRUSTED_ORIGINS = [
     'https://it-house-academt-edu-tizim-production.up.railway.app',
     'https://*.railway.app',
     'https://educrm1.netlify.app',
+    'https://edutizimtecher.netlify.app',
 ]
 
 CORS_ALLOWED_ORIGINS = [
     'https://educrm1.netlify.app',
+    'https://edutizimtecher.netlify.app',
 ]
 
 CORS_ALLOW_CREDENTIALS = True
