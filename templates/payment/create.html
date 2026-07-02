@@ -717,8 +717,8 @@
     fields.push({l:'Tranzaksiya turi:', v:"To'lov"});
     fields.push({l:'Miqdori:', v:formatNum(data.amount) + " so'm"});
     for (var i = 0; i < fields.length; i++) {
-      rows += '<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;font-weight:600;">' +
-        '<span style="color:#000;">' + fields[i].l + '</span>' +
+      rows += '<div style="display:flex;gap:6px;padding:2px 0;font-size:10px;font-weight:600;">' +
+        '<span style="color:#000;white-space:nowrap;">' + fields[i].l + '</span>' +
         '<span style="font-weight:700;color:#000;">' + fields[i].v + '</span></div>';
     }
     document.getElementById('rcptRows').innerHTML = rows;
