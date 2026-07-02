@@ -163,6 +163,10 @@
                 </a>
 
                 <div class="nav-section-label">Sozlamalar</div>
+                <a href="{% url 'receipt_settings' %}" class="nav-item {% if request.resolver_match.url_name == 'receipt_settings' %}active{% endif %}">
+                    <i class="fas fa-receipt"></i>
+                    <span>Chek sozlamalari</span>
+                </a>
                 <a href="{% url 'global_config' %}" class="nav-item">
                     <i class="fas fa-sliders-h"></i>
                     <span>Pul yechish sozlamalari</span>

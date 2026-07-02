@@ -492,3 +492,47 @@ class GlobalConfig(models.Model):
 
     def __str__(self):
         return f"Global sozlamalar (abs={self.deduct_absent}, exc={self.deduct_excused})"
+
+
+class ReceiptSettings(models.Model):
+    logo = models.ImageField(upload_to="receipt_logos/", blank=True, null=True, verbose_name="Logo")
+    academy_name = models.CharField(max_length=255, default="IT HOUSE ACADEMY", verbose_name="Markaz nomi")
+    tagline = models.CharField(max_length=255, default="SIFATLI TA'LIM MARKAZI", verbose_name="Tagline")
+    accent_color = models.CharField(max_length=7, default="#2001FF", verbose_name="Asosiy rang")
+
+    receipt_title = models.CharField(max_length=255, default="TO'LOV CHEKI", verbose_name="Chek sarlavhasi")
+    receipt_prefix = models.CharField(max_length=50, default="Chek #", verbose_name="Chek prefiksi")
+    receipt_format = models.CharField(max_length=50, default="000000", verbose_name="Chek formati")
+    footer_text = models.TextField(blank=True, default="Bizni tanlaganingiz uchun rahmat!", verbose_name="Footer matni")
+    thank_you_text = models.CharField(max_length=255, default="Rahmat!", verbose_name="Rahmat yozuvi")
+    payment_text = models.CharField(max_length=255, default="To'lov summasi", verbose_name="To'lov matni")
+    extra_notes = models.TextField(blank=True, null=True, verbose_name="Qo'shimcha izoh")
+    message_text = models.CharField(max_length=255, blank=True, null=True, verbose_name="Xabar matni")
+
+    qr_link = models.URLField(blank=True, default="", verbose_name="QR Code havolasi")
+    auto_generate_qr = models.BooleanField(default=True, verbose_name="Avtomatik QR")
+
+    phone = models.CharField(max_length=50, blank=True, default="", verbose_name="Telefon")
+    telegram = models.CharField(max_length=255, blank=True, default="", verbose_name="Telegram")
+    instagram = models.CharField(max_length=255, blank=True, default="", verbose_name="Instagram")
+    website = models.URLField(blank=True, default="", verbose_name="Website")
+    address = models.TextField(blank=True, default="", verbose_name="Manzil")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Chek sozlamasi"
+        verbose_name_plural = "Chek sozlamalari"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_instance(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return "Chek sozlamalari"

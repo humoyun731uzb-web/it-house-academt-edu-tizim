@@ -6,6 +6,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   .pay-search-wrap {
     position: relative;
@@ -447,11 +448,11 @@
 
 <div class="modal-overlay" id="receiptModal" onclick="if(event.target===this)closeReceipt()">
   <div class="modal-box" style="max-width:500px;overflow:hidden;padding:0;">
-    <div id="receiptBody" style="font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;padding:12px 10px 8px;">
+    <div id="receiptBody">
       <div class="r-top" style="border-top:3px double #000;margin-bottom:6px;padding-top:3px;"></div>
       <div class="r-header" style="text-align:center;margin-bottom:5px;">
-        <div style="font-size:16px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#000;">IT HOUSE ACADEMY</div>
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;color:#000;">SIFATLI TA'LIM MARKAZI</div>
+        <div class="r-academy-name" style="font-size:16px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#000;">IT HOUSE ACADEMY</div>
+        <div class="r-tagline" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;color:#000;">SIFATLI TA'LIM MARKAZI</div>
         <div class="r-receipt-no" style="font-size:9px;font-weight:700;margin-top:4px;letter-spacing:0.3px;color:#000;">Chek #<span id="rcptId"></span></div>
       </div>
       <hr class="r-divider" style="border:none;border-top:1px dashed #000;margin:5px 0;">
@@ -698,60 +699,29 @@
   }
 
   function showReceipt(data) {
-    document.getElementById('rcptId').textContent = data.transaction_id;
-    var rows = '';
-    var fields = [
-      {l:'Filial:', v:'Bosh ofis'},
-      {l:'Kassir:', v:data.admin_name},
-      {l:'Sana:', v:data.date},
-      {l:'Kassa:', v:'Asosiy'},
-      {l:"O'quvchi:", v:data.student_name},
-    ];
-    var phoneMatch = selectedStudent ? selectedStudent.phone : '';
-    var phoneDisplay = phoneMatch;
-    if (phoneDisplay && phoneDisplay.indexOf('+998') !== 0) {
-      phoneDisplay = '+998 ' + phoneDisplay;
+    window._lastTransactionId = data.transaction_id;
+    var body = document.getElementById('receiptBody');
+    if (data.receipt_html) {
+      body.innerHTML = data.receipt_html;
+      if (data.qr_link) {
+        var el = body.querySelector('#qrcode');
+        if (el && typeof QRCode !== 'undefined') {
+          new QRCode(el, { text: data.qr_link, width: 120, height: 120, colorDark: '#0f172a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
+        }
+      }
     }
-    fields.push({l:'Telefon:', v:phoneDisplay});
-    fields.push({l:"To'lov turi:", v:data.payment_method || 'Naqt'});
-    fields.push({l:'Tranzaksiya turi:', v:"To'lov"});
-    fields.push({l:'Miqdori:', v:formatNum(data.amount) + " so'm"});
-    for (var i = 0; i < fields.length; i++) {
-      rows += '<div style="display:flex;gap:6px;padding:2px 0;font-size:10px;font-weight:600;">' +
-        '<span style="color:#000;white-space:nowrap;">' + fields[i].l + '</span>' +
-        '<span style="font-weight:700;color:#000;">' + fields[i].v + '</span></div>';
-    }
-    document.getElementById('rcptRows').innerHTML = rows;
-    document.getElementById('receiptBody').querySelector('.r-amount-value').textContent = formatNum(data.amount) + " so'm";
-    document.getElementById('receiptBody').querySelector('.r-balance-val').textContent = formatNum(data.balance) + " so'm";
     document.getElementById('receiptModal').classList.add('show');
   }
 
   function closeReceipt() { document.getElementById('receiptModal').classList.remove('show'); }
 
   function printReceipt() {
-    var content = document.querySelector('#receiptBody').cloneNode(true);
-    var qr = content.querySelector('.r-qr svg');
-    if (qr) qr.setAttribute('style', 'width:72px;height:72px;');
-    var actions = content.parentNode;
-    var w = window.open('', '', 'width=400,height=700');
-    w.document.write(
-      '<!DOCTYPE html><html lang="uz"><head><meta charset="UTF-8"><title>To\'lov cheki</title>' +
-      '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
-      '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">' +
-      '<style>' +
-      '*{margin:0;padding:0;box-sizing:border-box}' +
-      'body{margin:0 auto;background:#fff;font-family:"Inter","Segoe UI",Arial,Helvetica,sans-serif;font-size:11px;color:#000;line-height:1.5;padding:0;font-weight:600;}' +
-      '@media print{body{width:auto}@page{margin:0;size:auto}}' +
-      '.r-top{border-top:3px double #000;margin-bottom:5px;padding-top:2px}' +
-      '.r-divider{border:none;border-top:1px dashed #000;margin:4px 0}' +
-      'hr{border:none;border-top:1px dashed #000;margin:4px 0}' +
-      'hr:last-of-type{border-top:2px solid #000}' +
-      '.r-section-title{font-weight:700;font-size:8px;margin:3px 0 2px;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px dashed #000;padding-bottom:1px}' +
-      '</style></head><body>' + content.innerHTML + '</body></html>'
-    );
-    w.document.close();
-    setTimeout(function() { w.print(); }, 500);
+    var transactionId = window._lastTransactionId;
+    if (transactionId) {
+      window.open('/receipt/print/' + transactionId + '/', '_blank');
+      return;
+    }
+    window.print();
   }
 
   function formatNum(n) {

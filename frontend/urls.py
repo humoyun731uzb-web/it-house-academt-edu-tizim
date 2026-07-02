@@ -125,11 +125,13 @@ urlpatterns = [
     path("payments/history/", views.payment_history, name="payment_history"),
     path("students/<int:pk>/balance/", views.student_balance_view, name="student_balance_view"),
     path("settings/global-config/", views.global_config, name="global_config"),
+    path("settings/receipt/", views.receipt_settings, name="receipt_settings"),
     # Receipt template builder
     path("receipt-templates/", views.receipt_builder, name="receipt_builder"),
     path("receipt-templates/new/", views.receipt_builder, name="receipt_builder_new"),
     path("receipt-templates/<int:pk>/", views.receipt_builder, name="receipt_builder_edit"),
     path("receipt-templates/<int:pk>/print/<int:transaction_id>/", views.receipt_print_preview, name="receipt_print_preview"),
+    path("receipt/print/<int:transaction_id>/", views.receipt_print, name="receipt_print"),
     # API
     path("api/receipt-templates/", views.api_receipt_templates, name="api_receipt_templates"),
     path("api/receipt-templates/create/", views.api_receipt_template_create, name="api_receipt_template_create"),

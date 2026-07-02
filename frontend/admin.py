@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Course, MarketingSurvey, Group, Student, LessonTime, StudentLog, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, VerificationCode, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate
+from .models import Course, MarketingSurvey, Group, Student, LessonTime, StudentLog, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, VerificationCode, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate, ReceiptSettings
 
 admin.site.register(Course)
 admin.site.register(MarketingSurvey)
@@ -19,6 +19,7 @@ admin.site.register(VerificationCode)
 admin.site.register(StudentBalance)
 admin.site.register(StudentLessonPrice)
 admin.site.register(GlobalConfig)
+admin.site.register(ReceiptSettings)
 
 
 admin.site.register(ReceiptTemplate)

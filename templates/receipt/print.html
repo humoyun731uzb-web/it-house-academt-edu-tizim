@@ -1,149 +1,211 @@
+{% load dict_filters %}{% if not inline %}
 <!DOCTYPE html>
 <html lang="uz">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chek #{{ transaction.pk }}</title>
-  {% load dict_filters %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@600;700;900&display=swap');
+{% endif %}
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      margin: 0 auto;
-      background: #fff;
       font-family: 'Inter', 'Segoe UI', Arial, Helvetica, sans-serif;
-      font-size: 11px;
-      color: #000;
-      line-height: 1.5;
-      padding: 0;
-      font-weight: 600;
+      background: #f8fafc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px;
     }
+    .receipt-wrap {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.1);
+      max-width: 460px;
+      width: 100%;
+      overflow: hidden;
+    }
+    .receipt-inner { padding: 36px; }
+    @media (max-width: 480px) { .receipt-inner { padding: 24px; } }
+
+    .rc-logo-wrap { text-align: center; margin-bottom: 12px; }
+    .rc-logo-wrap img { max-height: 64px; max-width: 180px; border-radius: 8px; }
+
+    .rc-academy { text-align: center; margin-bottom: 4px; }
+    .rc-academy .name { font-size: 20px; font-weight: 900; letter-spacing: 1px; color: #0f172a; }
+    .rc-academy .tagline { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #2001FF; margin-top: 2px; }
+
+    .rc-receipt-no { text-align: center; font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 8px; letter-spacing: 0.3px; }
+
+    .rc-title { text-align: center; font-size: 13px; font-weight: 800; color: #2001FF; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+
+    .rc-divider { border: none; border-top: 1.5px dashed #e2e8f0; margin: 12px 0; }
+    .rc-divider.solid { border-top-style: solid; border-color: #2001FF; border-width: 2px; }
+
+    .rc-section-title { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+
+    .rc-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
+    .rc-row .rc-label { color: #64748b; font-weight: 500; }
+    .rc-row .rc-value { font-weight: 600; color: #0f172a; text-align: right; }
+
+    .rc-amount-box { text-align: center; padding: 12px 0; }
+    .rc-amount-box .label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
+    .rc-amount-box .value { font-size: 28px; font-weight: 900; color: #2001FF; letter-spacing: 0.5px; margin-top: 4px; }
+
+    .rc-balance { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; padding: 4px 0; }
+    .rc-balance .lbl { color: #64748b; }
+    .rc-balance .val { color: #0f172a; }
+
+    .rc-message { text-align: center; padding: 8px 0; }
+    .rc-message .main { font-weight: 800; font-size: 12px; color: #0f172a; }
+    .rc-message .sub { font-size: 10px; color: #64748b; margin-top: 2px; }
+
+    .rc-footer { text-align: center; font-size: 11px; font-weight: 500; color: #94a3b8; margin-top: 8px; }
+    .rc-thanks { text-align: center; font-size: 13px; font-weight: 700; color: #2001FF; margin: 8px 0; }
+    .rc-notes { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 4px; }
+
+    .rc-contact { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; font-size: 10px; color: #64748b; margin-top: 8px; }
+    .rc-contact a { color: #2001FF; text-decoration: none; }
+    .rc-contact a:hover { text-decoration: underline; }
+
+    .rc-qr-wrap { text-align: center; margin-top: 12px; }
+    .rc-qr-wrap #qrcode { display: inline-block; padding: 8px; background: white; border-radius: 8px; }
+
     @media print {
-      body { width: auto; }
-      @page { margin: 0; size: auto; }
+      body { background: white; padding: 0; display: block; }
+      .receipt-wrap { box-shadow: none; border-radius: 0; max-width: 100%; }
+      .receipt-inner { padding: 24px; max-width: 460px; margin: 0 auto; }
+      @page { margin: 10mm; }
+      .no-print { display: none; }
     }
-    .rc-top-border { border-top: 3px double #000; margin-bottom: 6px; padding-top: 3px; }
-    .rc-header { text-align: center; margin-bottom: 5px; }
-    .rc-header .logo-text { font-size: 16px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
-    .rc-header .title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
-    .rc-header .receipt-no { font-size: 9px; font-weight: 700; margin-top: 4px; letter-spacing: 0.3px; }
-    .rc-divider { border: none; border-top: 1px dashed #000; margin: 5px 0; }
-    .rc-divider-thick { border: none; border-top: 2px solid #000; margin: 5px 0; }
-    .rc-row { display: flex; gap: 6px; padding: 2px 0; font-size: 10px; font-weight: 600; }
-    .rc-row .lbl { white-space: nowrap; }
-    .rc-row .val { font-weight: 700; }
-    .rc-section-title { font-weight: 700; font-size: 9px; margin: 4px 0 3px; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 1px dashed #000; padding-bottom: 2px; }
-    .rc-amount-box { text-align: center; padding: 5px 0; }
-    .rc-amount-box .label { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-    .rc-amount-box .value { font-size: 18px; font-weight: 900; letter-spacing: 0.3px; margin-top: 2px; }
-    .rc-balance { display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; padding: 3px 0; }
-    .rc-message { text-align: center; padding: 4px 0; }
-    .rc-message .main { font-weight: 900; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
-    .rc-message .sub { font-weight: 600; font-size: 8px; margin-top: 2px; }
-    .rc-footer { text-align: center; font-size: 8px; font-weight: 700; margin-top: 2px; letter-spacing: 0.3px; }
-    .rc-qr { text-align: center; padding: 4px 0 0; }
-    .rc-qr svg { width: 56px; height: 56px; }
-    .rc-qr span { display: block; font-size: 8px; font-weight: 600; margin-top: 2px; letter-spacing: 0.3px; }
-    .rc-barcode { text-align: center; padding: 4px 0; }
+
+    .no-print { text-align: center; margin-top: 16px; }
+    .no-print button {
+      padding: 10px 24px; border-radius: 10px; border: none;
+      background: #2001FF; color: white; font-family: 'Inter', sans-serif;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: all .15s;
+    }
+    .no-print button:hover { opacity: .9; }
+    .no-print button:last-child { background: #f1f5f9; color: #374151; margin-left: 8px; }
+{% if not inline %}
   </style>
 </head>
 <body>
+{% endif %}
 
-  <div class="rc-top-border"></div>
+  <div class="receipt-wrap">
+    <div class="receipt-inner">
 
-  <div class="rc-header">
-    <div class="logo-text">IT HOUSE ACADEMY</div>
-    <div class="title">SIFATLI TA'LIM MARKAZI</div>
-    <div class="receipt-no">Chek #{{ transaction.pk }}</div>
+      {% if settings.logo_url %}
+      <div class="rc-logo-wrap">
+        <img src="{{ settings.logo_url }}" alt="Logo">
+      </div>
+      {% endif %}
+
+      <div class="rc-academy">
+        <div class="name">{{ settings.academy_name|default:"IT HOUSE ACADEMY" }}</div>
+        <div class="tagline">{{ settings.tagline|default:"SIFATLI TA'LIM MARKAZI" }}</div>
+      </div>
+
+      <div class="rc-title">{{ settings.receipt_title|default:"TO'LOV CHEKI" }}</div>
+
+      <div class="rc-receipt-no">{{ settings.receipt_prefix|default:"Chek #" }}{{ transaction.pk }}</div>
+
+      <hr class="rc-divider">
+
+      <div class="rc-section-title">To'lov ma'lumotlari</div>
+      <div class="rc-row"><span class="rc-label">Sana:</span><span class="rc-value">{{ transaction.created_at|date:"d.m.Y H:i" }}</span></div>
+      <div class="rc-row"><span class="rc-label">Kassir:</span><span class="rc-value">{{ transaction.created_by|default:"Admin" }}</span></div>
+      {% if transaction.group %}
+      <div class="rc-row"><span class="rc-label">Guruh:</span><span class="rc-value">{{ transaction.group.name|default:"Asosiy" }}</span></div>
+      {% endif %}
+      <div class="rc-row"><span class="rc-label">O'quvchi:</span><span class="rc-value">{{ transaction.student.first_name }} {{ transaction.student.last_name }}</span></div>
+      <div class="rc-row"><span class="rc-label">Telefon:</span><span class="rc-value">{{ transaction.student.phone }}</span></div>
+      {% if transaction.payment_method %}
+      <div class="rc-row"><span class="rc-label">To'lov turi:</span><span class="rc-value">{% if transaction.payment_method == 'naqt' %}Naqt{% else %}Karta{% endif %}</span></div>
+      {% endif %}
+      <div class="rc-row"><span class="rc-label">Tranzaksiya turi:</span><span class="rc-value">{{ transaction.get_transaction_type_display }}</span></div>
+
+      <hr class="rc-divider">
+
+      <div class="rc-amount-box">
+        <div class="label">{{ settings.payment_text|default:"To'lov summasi" }}</div>
+        <div class="value">{{ transaction.amount|spacesep }} so'm</div>
+      </div>
+
+      <hr class="rc-divider">
+
+      <div class="rc-balance">
+        <span class="lbl">Joriy balans:</span>
+        <span class="val">{{ transaction.balance_after|spacesep }} so'm</span>
+      </div>
+
+      {% if transaction.description %}
+      <hr class="rc-divider">
+      <div class="rc-row"><span class="rc-label">Izoh:</span><span class="rc-value">{{ transaction.description }}</span></div>
+      {% endif %}
+
+      {% if settings.message_text %}
+      <hr class="rc-divider">
+      <div class="rc-message">
+        <div class="main">{{ settings.message_text }}</div>
+      </div>
+      {% endif %}
+
+      <hr class="rc-divider solid">
+
+      <div class="rc-thanks">{{ settings.thank_you_text|default:"Rahmat!" }}</div>
+      <div class="rc-footer">{{ settings.footer_text|default:"Bizni tanlaganingiz uchun rahmat!" }}</div>
+
+      {% if settings.extra_notes %}
+      <div class="rc-notes">{{ settings.extra_notes }}</div>
+      {% endif %}
+
+      <div class="rc-contact">
+        {% if settings.phone %}<span><i class="fas fa-phone"></i> {{ settings.phone }}</span>{% endif %}
+        {% if settings.telegram %}<span><i class="fab fa-telegram-plane"></i> {{ settings.telegram }}</span>{% endif %}
+        {% if settings.instagram %}<span><i class="fab fa-instagram"></i> {{ settings.instagram }}</span>{% endif %}
+        {% if settings.website %}<a href="{{ settings.website }}" target="_blank"><i class="fas fa-globe"></i> {{ settings.website }}</a>{% endif %}
+      </div>
+
+      {% if settings.address %}
+      <div class="rc-notes" style="margin-top:2px;">{{ settings.address }}</div>
+      {% endif %}
+
+      <div class="rc-qr-wrap">
+        <div id="qrcode"></div>
+      </div>
+
+    </div>
+
+    {% if not inline %}
+    <div class="no-print" style="padding:0 36px 24px;">
+      <button onclick="window.print()"><i class="fas fa-print"></i> Chop etish</button>
+      <button onclick="window.close()"><i class="fas fa-times"></i> Yopish</button>
+    </div>
+    {% endif %}
   </div>
 
-  <hr class="rc-divider">
-
-  <div class="rc-section-title">To'lov ma'lumotlari</div>
-  <div class="rc-row"><span class="lbl">Sana:</span><span class="val">{{ transaction.created_at|date:"d.m.Y H:i" }}</span></div>
-  <div class="rc-row"><span class="lbl">Kassir:</span><span class="val">{{ transaction.created_by|default:"Admin" }}</span></div>
-  {% if transaction.group %}
-  <div class="rc-row"><span class="lbl">Kassa:</span><span class="val">{{ transaction.group.name|default:"Asosiy" }}</span></div>
-  {% endif %}
-  <div class="rc-row"><span class="lbl">O'quvchi:</span><span class="val">{{ transaction.student.first_name }} {{ transaction.student.last_name }}</span></div>
-  <div class="rc-row"><span class="lbl">Telefon:</span><span class="val">{{ transaction.student.phone }}</span></div>
-  {% if transaction.payment_method %}
-  <div class="rc-row"><span class="lbl">To'lov turi:</span><span class="val">{% if transaction.payment_method == 'naqt' %}Naqt{% else %}Karta{% endif %}</span></div>
-  {% endif %}
-  <div class="rc-row"><span class="lbl">Tranzaksiya turi:</span><span class="val">{{ transaction.get_transaction_type_display }}</span></div>
-  <div class="rc-row"><span class="lbl">Miqdori:</span><span class="val">{{ transaction.amount|spacesep }} so'm</span></div>
-
-  <hr class="rc-divider">
-
-  <div class="rc-amount-box">
-    <div class="label">To'lov summasi</div>
-    <div class="value">{{ transaction.amount|spacesep }} so'm</div>
-  </div>
-
-  <hr class="rc-divider">
-
-  <div class="rc-balance">
-    <span>Joriy balans:</span>
-    <span>{{ transaction.balance_after|spacesep }} so'm</span>
-  </div>
-
-  {% if transaction.description %}
-  <hr class="rc-divider">
-  <div class="rc-row"><span class="lbl">Izoh:</span><span class="val">{{ transaction.description }}</span></div>
-  {% endif %}
-
-  <hr class="rc-divider-thick">
-
-  <div class="rc-message">
-    <div class="main">HURMATLI O'QUVCHI!</div>
-    <div class="sub">To'lovlarni har oyning 10-sanasidan kechiktirmang iltimos!</div>
-  </div>
-
-  <hr class="rc-divider">
-
-  <div class="rc-footer">Chekni tashlab yubormang!</div>
-
-  <div class="rc-qr">
-    <svg width="56" height="56" viewBox="0 0 100 100">
-      <rect fill="#fff" width="100" height="100"/>
-      <rect fill="#000" x="5" y="5" width="35" height="35"/>
-      <rect fill="#fff" x="10" y="10" width="5" height="5"/>
-      <rect fill="#fff" x="20" y="10" width="5" height="5"/>
-      <rect fill="#fff" x="30" y="10" width="5" height="5"/>
-      <rect fill="#fff" x="10" y="20" width="5" height="5"/>
-      <rect fill="#fff" x="30" y="20" width="5" height="5"/>
-      <rect fill="#fff" x="10" y="30" width="5" height="5"/>
-      <rect fill="#fff" x="20" y="30" width="5" height="5"/>
-      <rect fill="#fff" x="30" y="30" width="5" height="5"/>
-      <rect fill="#000" x="60" y="5" width="35" height="35"/>
-      <rect fill="#fff" x="65" y="10" width="5" height="5"/>
-      <rect fill="#fff" x="75" y="10" width="5" height="5"/>
-      <rect fill="#fff" x="85" y="10" width="5" height="5"/>
-      <rect fill="#fff" x="65" y="20" width="5" height="5"/>
-      <rect fill="#fff" x="85" y="20" width="5" height="5"/>
-      <rect fill="#fff" x="65" y="30" width="5" height="5"/>
-      <rect fill="#fff" x="75" y="30" width="5" height="5"/>
-      <rect fill="#fff" x="85" y="30" width="5" height="5"/>
-      <rect fill="#000" x="5" y="60" width="35" height="35"/>
-      <rect fill="#fff" x="10" y="65" width="5" height="5"/>
-      <rect fill="#fff" x="20" y="65" width="5" height="5"/>
-      <rect fill="#fff" x="30" y="65" width="5" height="5"/>
-      <rect fill="#fff" x="10" y="75" width="5" height="5"/>
-      <rect fill="#fff" x="30" y="75" width="5" height="5"/>
-      <rect fill="#fff" x="10" y="85" width="5" height="5"/>
-      <rect fill="#fff" x="20" y="85" width="5" height="5"/>
-      <rect fill="#fff" x="30" y="85" width="5" height="5"/>
-      <rect fill="#000" x="50" y="50" width="15" height="15"/>
-      <rect fill="#000" x="70" y="60" width="5" height="5"/>
-      <rect fill="#000" x="80" y="60" width="5" height="5"/>
-      <rect fill="#fff" x="70" y="70" width="5" height="5"/>
-      <rect fill="#000" x="80" y="70" width="5" height="5"/>
-    </svg>
-    <span>QR kodni skanerlang</span>
-  </div>
-
+{% if not inline %}
   <script>
-    window.print();
+    var qrLink = "{{ settings.qr_link|default:'' }}";
+    if (qrLink) {
+      new QRCode(document.getElementById('qrcode'), {
+        text: qrLink,
+        width: 120,
+        height: 120,
+        colorDark: '#0f172a',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
   </script>
 </body>
 </html>
+{% endif %}

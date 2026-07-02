@@ -1,5 +1,6 @@
 import json
 from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import render_to_string
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -10,7 +11,7 @@ from django.utils import timezone
 from datetime import date, timedelta, datetime, timezone as dt_timezone
 import calendar
 from decimal import Decimal
-from .models import Course, Group, Student, MarketingSurvey, StudentLog, LessonTime, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate
+from .models import Course, Group, Student, MarketingSurvey, StudentLog, LessonTime, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate, ReceiptSettings
 from .forms import LoginForm, CourseForm, GroupForm, StudentCreateForm, StudentEditForm, MarketingSurveyForm, FreezeForm, RemoveFromGroupForm, AddToGroupForm, LessonTimeForm, BranchForm, RoomForm, PositionForm, EmployeeForm
 
 
@@ -2969,7 +2970,33 @@ def payment_create(request):
             created_by = f"{employee.first_name} {employee.last_name or ''}".strip()
         balance, transaction = process_payment(student, amount, description=description, created_by=created_by, payment_method=payment_method)
         method_label = "Naqt" if payment_method == "naqt" else ("Karta" if payment_method == "karta" else "")
-        return JsonResponse({
+        receipt_settings = ReceiptSettings.get_instance()
+        settings = {
+            "academy_name": receipt_settings.academy_name,
+            "tagline": receipt_settings.tagline,
+            "accent_color": receipt_settings.accent_color,
+            "receipt_title": receipt_settings.receipt_title,
+            "receipt_prefix": receipt_settings.receipt_prefix,
+            "receipt_format": receipt_settings.receipt_format,
+            "footer_text": receipt_settings.footer_text,
+            "thank_you_text": receipt_settings.thank_you_text,
+            "payment_text": receipt_settings.payment_text,
+            "extra_notes": receipt_settings.extra_notes,
+            "message_text": receipt_settings.message_text,
+            "qr_link": receipt_settings.qr_link,
+            "phone": receipt_settings.phone,
+            "telegram": receipt_settings.telegram,
+            "instagram": receipt_settings.instagram,
+            "website": receipt_settings.website,
+            "address": receipt_settings.address,
+            "logo_url": receipt_settings.logo.url if receipt_settings.logo else "",
+        }
+        receipt_html = render_to_string("receipt/print.html", {
+            "transaction": transaction,
+            "settings": settings,
+            "inline": True,
+        }, request=request)
+        response_data = {
             "success": True,
             "transaction_id": transaction.pk,
             "student_name": f"{student.first_name} {student.last_name}",
@@ -2978,31 +3005,50 @@ def payment_create(request):
             "date": timezone.localtime().strftime("%d.%m.%Y %H:%M"),
             "balance": float(balance.balance),
             "payment_method": method_label,
-        })
-    students = Student.objects.all().order_by("first_name", "last_name").prefetch_related('groups', 'balance')
+            "qr_link": receipt_settings.qr_link or "",
+            "receipt_html": receipt_html,
+        }
+        return JsonResponse(response_data)
+    students = Student.objects.all().order_by("first_name", "last_name").prefetch_related('groups')
     employee = getattr(request.user, 'employee_profile', None)
     admin_name = "Admin"
     if employee:
         admin_name = f"{employee.first_name} {employee.last_name or ''}".strip()
     student_data = []
     for s in students:
-        balance = get_or_create_balance(s)
-        remaining = calculate_remaining_month_payment(s)
-        expected_up_to_today = calculate_expected_payment_up_to_today(s)
+        try:
+            balance = get_or_create_balance(s)
+            bal_val = float(balance.balance)
+        except Exception:
+            bal_val = 0.0
+        try:
+            remaining = calculate_remaining_month_payment(s)
+            rem_val = float(remaining)
+        except Exception:
+            rem_val = 0.0
+        try:
+            expected_up_to_today = calculate_expected_payment_up_to_today(s)
+            exp_val = float(expected_up_to_today)
+        except Exception:
+            exp_val = 0.0
         groups_info = []
         for g in s.groups.filter(status='aktiv'):
+            try:
+                price = float(get_student_lesson_price(s, g))
+            except Exception:
+                price = 0.0
             groups_info.append({
                 'name': g.name,
-                'price': float(get_student_lesson_price(s, g)),
+                'price': price,
             })
         student_data.append({
             'id': s.pk,
             'first_name': s.first_name,
             'last_name': s.last_name,
             'phone': s.phone,
-            'balance': float(balance.balance),
-            'remaining_month_payment': float(remaining),
-            'expected_up_to_today': float(expected_up_to_today),
+            'balance': bal_val,
+            'remaining_month_payment': rem_val,
+            'expected_up_to_today': exp_val,
             'groups': groups_info,
         })
     return render(request, "payment/create.html", {
@@ -3056,6 +3102,39 @@ def global_config(request):
 
 
 @login_required(login_url="login")
+def receipt_settings(request):
+    settings = ReceiptSettings.get_instance()
+    if request.method == "POST":
+        settings.academy_name = request.POST.get("academy_name", settings.academy_name)
+        settings.tagline = request.POST.get("tagline", settings.tagline)
+        settings.accent_color = request.POST.get("accent_color", settings.accent_color)
+        settings.receipt_title = request.POST.get("receipt_title", settings.receipt_title)
+        settings.receipt_prefix = request.POST.get("receipt_prefix", settings.receipt_prefix)
+        settings.receipt_format = request.POST.get("receipt_format", settings.receipt_format)
+        settings.footer_text = request.POST.get("footer_text", settings.footer_text)
+        settings.thank_you_text = request.POST.get("thank_you_text", settings.thank_you_text)
+        settings.payment_text = request.POST.get("payment_text", settings.payment_text)
+        settings.extra_notes = request.POST.get("extra_notes", settings.extra_notes)
+        settings.message_text = request.POST.get("message_text", settings.message_text)
+        settings.qr_link = request.POST.get("qr_link", settings.qr_link)
+        settings.auto_generate_qr = request.POST.get("auto_generate_qr") == "on"
+        settings.phone = request.POST.get("phone", settings.phone)
+        settings.telegram = request.POST.get("telegram", settings.telegram)
+        settings.instagram = request.POST.get("instagram", settings.instagram)
+        settings.website = request.POST.get("website", settings.website)
+        settings.address = request.POST.get("address", settings.address)
+        if request.FILES.get("logo"):
+            settings.logo = request.FILES["logo"]
+        if request.POST.get("remove_logo") == "1":
+            settings.logo.delete(save=False)
+            settings.logo = None
+        settings.save()
+        messages.success(request, "Chek sozlamalari saqlandi")
+        return redirect("receipt_settings")
+    return render(request, "settings/receipt_settings.html", {"settings": settings})
+
+
+@login_required(login_url="login")
 def update_student_lesson_price(request, group_pk, student_pk):
     group = get_object_or_404(Group, pk=group_pk)
     student = get_object_or_404(Student, pk=student_pk)
@@ -3100,17 +3179,60 @@ def receipt_builder(request, pk=None):
 @login_required(login_url="login")
 def receipt_print_preview(request, pk, transaction_id):
     transaction = get_object_or_404(Transaction, pk=transaction_id)
-    template = get_object_or_404(ReceiptTemplate, pk=pk)
+    receipt_settings = ReceiptSettings.get_instance()
     settings = {
-        "width": template.width if template else "80mm",
-        "bg_color": template.background_color if template else "#ffffff",
-        "black_white": template.black_white if template else True,
-        "padding": template.page_padding if template else 10,
+        "academy_name": receipt_settings.academy_name,
+        "tagline": receipt_settings.tagline,
+        "accent_color": receipt_settings.accent_color,
+        "receipt_title": receipt_settings.receipt_title,
+        "receipt_prefix": receipt_settings.receipt_prefix,
+        "receipt_format": receipt_settings.receipt_format,
+        "footer_text": receipt_settings.footer_text,
+        "thank_you_text": receipt_settings.thank_you_text,
+        "payment_text": receipt_settings.payment_text,
+        "extra_notes": receipt_settings.extra_notes,
+        "message_text": receipt_settings.message_text,
+        "qr_link": receipt_settings.qr_link,
+        "phone": receipt_settings.phone,
+        "telegram": receipt_settings.telegram,
+        "instagram": receipt_settings.instagram,
+        "website": receipt_settings.website,
+        "address": receipt_settings.address,
+        "logo_url": receipt_settings.logo.url if receipt_settings.logo else "",
     }
     return render(request, "receipt/print.html", {
         "transaction": transaction,
         "settings": settings,
-        "components": json.dumps(template.components if template else []),
+    })
+
+
+@login_required(login_url="login")
+def receipt_print(request, transaction_id):
+    transaction = get_object_or_404(Transaction, pk=transaction_id)
+    receipt_settings = ReceiptSettings.get_instance()
+    settings = {
+        "academy_name": receipt_settings.academy_name,
+        "tagline": receipt_settings.tagline,
+        "accent_color": receipt_settings.accent_color,
+        "receipt_title": receipt_settings.receipt_title,
+        "receipt_prefix": receipt_settings.receipt_prefix,
+        "receipt_format": receipt_settings.receipt_format,
+        "footer_text": receipt_settings.footer_text,
+        "thank_you_text": receipt_settings.thank_you_text,
+        "payment_text": receipt_settings.payment_text,
+        "extra_notes": receipt_settings.extra_notes,
+        "message_text": receipt_settings.message_text,
+        "qr_link": receipt_settings.qr_link,
+        "phone": receipt_settings.phone,
+        "telegram": receipt_settings.telegram,
+        "instagram": receipt_settings.instagram,
+        "website": receipt_settings.website,
+        "address": receipt_settings.address,
+        "logo_url": receipt_settings.logo.url if receipt_settings.logo else "",
+    }
+    return render(request, "receipt/print.html", {
+        "transaction": transaction,
+        "settings": settings,
     })
 
 

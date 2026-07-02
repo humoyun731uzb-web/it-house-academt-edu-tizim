@@ -637,7 +637,28 @@
             </Section>
 
             <Section title="Matn">
-              {component.type === 'logo' && <Field label="Rasm URL" value={props.src||''} onChange={(v) => setProp('src', v)} />}
+              {component.type === 'logo' && (
+                <>
+                  <Field label="Rasm URL" value={props.src||''} onChange={(v) => setProp('src', v)} />
+                  <div style={{marginBottom:'6px'}}>
+                    <Label>Rasm yuklash</Label>
+                    <input type="file" accept="image/*" onChange={(e) => {
+                      var file = e.target.files[0];
+                      if (file) {
+                        var reader = new FileReader();
+                        reader.onload = function(ev) { setProp('src', ev.target.result); };
+                        reader.readAsDataURL(file);
+                      }
+                    }} style={{width:'100%',fontSize:'11px',padding:'4px',border:'1px solid #e2e8f0',borderRadius:'6px',background:'#fff'}} />
+                  </div>
+                  {props.src && props.src.indexOf('data:') === 0 && (
+                    <div style={{marginBottom:'6px'}}>
+                      <img src={props.src} alt="Logo" style={{maxWidth:'100%',maxHeight:'60px',display:'block',marginBottom:'4px',border:'1px solid #e2e8f0',borderRadius:'4px',padding:'4px'}} />
+                      <button onClick={function(){setProp('src','')}} style={{padding:'3px 8px',borderRadius:'4px',border:'1px solid #dc2626',background:'#fef2f2',color:'#dc2626',cursor:'pointer',fontSize:'10px'}}><i className="fas fa-times"></i> Olib tashlash</button>
+                    </div>
+                  )}
+                </>
+              )}
               {props.text !== undefined && <Field label="Matn" value={props.text} onChange={(v) => setProp('text', v)} />}
               {props.content !== undefined && <Field label="Matn" value={props.content} onChange={(v) => setProp('content', v)} />}
               {props.label !== undefined && <Field label="Label" value={props.label} onChange={(v) => setProp('label', v)} />}

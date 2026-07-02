@@ -44,7 +44,7 @@
                         <button type="button" class="password-toggle" onclick="togglePassword()">
                             <i class="far fa-eye" id="eye-icon"></i>
                         </button>
-                    </div>
+                    </div>~`
                     {% if form.password.errors %}
                     <div class="field-error">{{ form.password.errors.0 }}</div>
                     {% endif %}
@@ -56,7 +56,7 @@
             </form>
 
             <div class="login-footer">
- &copy; {% now "Y" %}
+  &copy; {% now "Y" %}
             </div>
         </div>
     </div>
