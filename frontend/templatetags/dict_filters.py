@@ -23,6 +23,16 @@ def has_key(dictionary, key):
     return key in dictionary
 
 @register.filter
+def spacesep(value):
+    """Add space as thousand separator: 10000000 -> 10 000 000"""
+    try:
+        from decimal import Decimal
+        v = int(Decimal(str(value)))
+        return f"{v:,}".replace(",", " ")
+    except (ValueError, TypeError):
+        return value
+
+@register.filter
 def get_balance(student):
     try:
         return student.balance

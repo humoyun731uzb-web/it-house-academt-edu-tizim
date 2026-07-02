@@ -418,7 +418,7 @@
       <div class="pay-error" id="payError"><i class="fas fa-exclamation-circle"></i> <span id="payErrorText"></span></div>
       <div class="pay-form-group">
         <label><i class="fas fa-money-bill-wave" style="color:#16a34a"></i>To'lov summasi</label>
-        <input type="number" id="payAmount" placeholder="Masalan: 50 000" min="0">
+        <input type="text" id="payAmount" placeholder="Masalan: 50 000" inputmode="numeric" oninput="formatPayAmount(this)">
         <div class="hint">Eng kam to'lov: 1 000 so'm</div>
       </div>
       <div class="pay-method-group">
@@ -446,33 +446,33 @@
 </div>
 
 <div class="modal-overlay" id="receiptModal" onclick="if(event.target===this)closeReceipt()">
-  <div class="modal-box" style="max-width:420px;overflow:hidden;padding:0;">
-    <div id="receiptBody" style="font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;padding:28px 24px 16px;">
-      <div class="r-top" style="border-top:3px double #000;margin-bottom:10px;padding-top:4px;"></div>
-      <div class="r-header" style="text-align:center;margin-bottom:8px;">
-        <div style="font-size:22px;font-weight:900;letter-spacing:2.5px;text-transform:uppercase;color:#000;">IT HOUSE ACADEMY</div>
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-top:2px;color:#000;">SIFATLI TA'LIM MARKAZI</div>
-        <div class="r-receipt-no" style="font-size:10px;margin-top:6px;letter-spacing:0.5px;color:#333;">Chek #<span id="rcptId"></span></div>
+  <div class="modal-box" style="max-width:265px;overflow:hidden;padding:0;">
+    <div id="receiptBody" style="font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;padding:16px 12px 10px;">
+      <div class="r-top" style="border-top:3px double #000;margin-bottom:6px;padding-top:3px;"></div>
+      <div class="r-header" style="text-align:center;margin-bottom:5px;">
+        <div style="font-size:16px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#000;">IT HOUSE ACADEMY</div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;color:#000;">SIFATLI TA'LIM MARKAZI</div>
+        <div class="r-receipt-no" style="font-size:9px;font-weight:700;margin-top:4px;letter-spacing:0.3px;color:#000;">Chek #<span id="rcptId"></span></div>
       </div>
-      <hr class="r-divider" style="border:none;border-top:1px dashed #000;margin:7px 0;">
-      <div class="r-section-title" style="font-weight:700;font-size:10px;margin:5px 0 3px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #000;padding-bottom:2px;">To'lov ma'lumotlari</div>
+      <hr class="r-divider" style="border:none;border-top:1px dashed #000;margin:5px 0;">
+      <div class="r-section-title" style="font-weight:700;font-size:9px;margin:4px 0 3px;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px dashed #000;padding-bottom:2px;">To'lov ma'lumotlari</div>
       <div id="rcptRows"></div>
-      <hr class="r-divider" style="border:none;border-top:1px dashed #000;margin:7px 0;">
-      <div class="r-amount-box" style="text-align:center;padding:8px 0;">
-        <div style="font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#555;">To'lov summasi</div>
-        <div class="r-amount-value" style="font-size:18px;font-weight:900;letter-spacing:0.5px;margin-top:2px;color:#000;"></div>
+      <hr class="r-divider" style="border:none;border-top:1px dashed #000;margin:5px 0;">
+      <div class="r-amount-box" style="text-align:center;padding:5px 0;">
+        <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#000;">To'lov summasi</div>
+        <div class="r-amount-value" style="font-size:18px;font-weight:900;letter-spacing:0.3px;margin-top:2px;color:#000;"></div>
       </div>
-      <hr class="r-divider" style="border:none;border-top:1px dashed #000;margin:7px 0;">
+      <hr class="r-divider" style="border:none;border-top:1px dashed #000;margin:5px 0;">
       <div class="r-balance" style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;padding:3px 0;"><span>Joriy balans:</span><span class="r-balance-val"></span></div>
-      <hr style="border:none;border-top:2px solid #000;margin:7px 0;">
-      <div class="r-message" style="text-align:center;padding:6px 0;">
-        <div style="font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#000;">HURMATLI O'QUVCHI!</div>
-        <div style="font-size:9px;margin-top:3px;color:#333;">To'lovlarni har oyning 10-sanasidan<br>kechiktirmang iltimos!</div>
+      <hr style="border:none;border-top:2px solid #000;margin:5px 0;">
+      <div class="r-message" style="text-align:center;padding:4px 0;">
+        <div style="font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:0.3px;color:#000;">HURMATLI O'QUVCHI!</div>
+        <div style="font-size:8px;font-weight:600;margin-top:2px;color:#000;">To'lovlarni har oyning 10-sanasidan<br>kechiktirmang iltimos!</div>
       </div>
-      <hr class="r-divider" style="border:none;border-top:1px dashed #000;margin:7px 0;">
-      <div class="r-footer" style="text-align:center;font-size:9px;margin-top:4px;letter-spacing:0.5px;color:#555;">Chekni tashlab yubormang!</div>
-      <div class="r-qr" style="text-align:center;padding:6px 0 0;">
-        <svg width="64" height="64" viewBox="0 0 100 100">
+      <hr class="r-divider" style="border:none;border-top:1px dashed #000;margin:5px 0;">
+      <div class="r-footer" style="text-align:center;font-size:8px;font-weight:700;margin-top:2px;letter-spacing:0.3px;color:#000;">Chekni tashlab yubormang!</div>
+      <div class="r-qr" style="text-align:center;padding:4px 0 0;">
+        <svg width="56" height="56" viewBox="0 0 100 100">
           <rect fill="#fff" width="100" height="100"/><rect fill="#000" x="5" y="5" width="35" height="35"/>
           <rect fill="#fff" x="10" y="10" width="5" height="5"/><rect fill="#fff" x="20" y="10" width="5" height="5"/>
           <rect fill="#fff" x="30" y="10" width="5" height="5"/><rect fill="#fff" x="10" y="20" width="5" height="5"/>
@@ -610,9 +610,16 @@
     document.getElementById('payError').classList.add('show');
   }
 
+  function formatPayAmount(input) {
+    var raw = input.value.replace(/\s/g, '');
+    var num = raw.replace(/\D/g, '');
+    if (num !== raw) { input.value = num; return; }
+    var formatted = num.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    if (formatted !== input.value) { input.value = formatted; }
+  }
   function submitPayment() {
     document.getElementById('payError').classList.remove('show');
-    var amount = document.getElementById('payAmount').value;
+    var amount = document.getElementById('payAmount').value.replace(/\s/g, '');
     var description = document.getElementById('payDescription').value;
     if (!amount || parseFloat(amount) <= 0) {
       showError('Iltimos, to\'lov summasini kiriting!');
@@ -701,14 +708,18 @@
       {l:"O'quvchi:", v:data.student_name},
     ];
     var phoneMatch = selectedStudent ? selectedStudent.phone : '';
-    fields.push({l:'Telefon:', v:'+998 ' + phoneMatch});
+    var phoneDisplay = phoneMatch;
+    if (phoneDisplay && phoneDisplay.indexOf('+998') !== 0) {
+      phoneDisplay = '+998 ' + phoneDisplay;
+    }
+    fields.push({l:'Telefon:', v:phoneDisplay});
     fields.push({l:"To'lov turi:", v:data.payment_method || 'Naqt'});
     fields.push({l:'Tranzaksiya turi:', v:"To'lov"});
     fields.push({l:'Miqdori:', v:formatNum(data.amount) + " so'm"});
     for (var i = 0; i < fields.length; i++) {
-      rows += '<div style="display:flex;justify-content:space-between;padding:1.5px 0;font-size:10px;">' +
-        '<span style="font-weight:700;color:#000;">' + fields[i].l + '</span>' +
-        '<span style="color:#000;">' + fields[i].v + '</span></div>';
+      rows += '<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;font-weight:600;">' +
+        '<span style="color:#000;">' + fields[i].l + '</span>' +
+        '<span style="font-weight:700;color:#000;">' + fields[i].v + '</span></div>';
     }
     document.getElementById('rcptRows').innerHTML = rows;
     document.getElementById('receiptBody').querySelector('.r-amount-value').textContent = formatNum(data.amount) + " so'm";
@@ -720,23 +731,23 @@
 
   function printReceipt() {
     var content = document.querySelector('#receiptBody').cloneNode(true);
-    var qr = content.querySelector('.r-qr');
-    if (qr) {
-      var svg = qr.querySelector('svg');
-      if (svg) svg.setAttribute('style', 'width:80px;height:80px;');
-    }
+    var qr = content.querySelector('.r-qr svg');
+    if (qr) qr.setAttribute('style', 'width:72px;height:72px;');
+    var actions = content.parentNode;
     var w = window.open('', '', 'width=400,height=700');
     w.document.write(
       '<!DOCTYPE html><html lang="uz"><head><meta charset="UTF-8"><title>To\'lov cheki</title>' +
+      '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+      '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">' +
       '<style>' +
       '*{margin:0;padding:0;box-sizing:border-box}' +
-      'body{width:80mm;margin:0 auto;background:#fff;font-family:"Courier New","Courier",monospace;font-size:10px;color:#000;line-height:1.5;padding:12px;}' +
-      '@media print{body{width:80mm}@page{margin:0}}' +
-      '.r-top{border-top:3px double #000;margin-bottom:8px;padding-top:4px}' +
-      '.r-header{text-align:center;margin-bottom:6px}' +
-      '.r-divider{border:none;border-top:1px dashed #000;margin:7px 0}' +
-      'hr{border:none;border-top:1px dashed #000;margin:7px 0}' +
-      '.r-section-title{font-weight:700;font-size:10px;margin:5px 0 3px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #000;padding-bottom:2px}' +
+      'body{width:70mm;min-height:200mm;margin:0 auto;background:#fff;font-family:"Inter","Segoe UI",Arial,Helvetica,sans-serif;font-size:11px;color:#000;line-height:1.5;padding:8px;font-weight:600;}' +
+      '@media print{body{width:70mm;min-height:200mm;border:none}@page{margin:0}}' +
+      '.r-top{border-top:3px double #000;margin-bottom:5px;padding-top:2px}' +
+      '.r-divider{border:none;border-top:1px dashed #000;margin:4px 0}' +
+      'hr{border:none;border-top:1px dashed #000;margin:4px 0}' +
+      'hr:last-of-type{border-top:2px solid #000}' +
+      '.r-section-title{font-weight:700;font-size:8px;margin:3px 0 2px;text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px dashed #000;padding-bottom:1px}' +
       '</style></head><body>' + content.innerHTML + '</body></html>'
     );
     w.document.close();
