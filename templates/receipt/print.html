@@ -9,8 +9,6 @@
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@600;700;900&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      width: 130mm;
-      min-height: 200mm;
       margin: 0 auto;
       background: #fff;
       font-family: 'Inter', 'Segoe UI', Arial, Helvetica, sans-serif;
@@ -18,12 +16,11 @@
       color: #000;
       line-height: 1.5;
       padding: 0;
-      border: 1px solid #000;
       font-weight: 600;
     }
     @media print {
-      body { width: 130mm; min-height: 200mm; border: none; }
-      @page { margin: 0; }
+      body { width: auto; }
+      @page { margin: 0; size: auto; }
     }
     .rc-top-border { border-top: 3px double #000; margin-bottom: 6px; padding-top: 3px; }
     .rc-header { text-align: center; margin-bottom: 5px; }
