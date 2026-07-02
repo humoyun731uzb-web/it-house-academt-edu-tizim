@@ -114,7 +114,7 @@ export default function Profile() {
                       <p className="text-[10px] font-medium text-gray-400 mt-0.5">{t.created_at}</p>
                     </div>
                     <span className={`text-sm font-bold shrink-0 ${t.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {t.amount >= 0 ? "+" : ""}{t.amount_str}
+                      {t.amount_str}
                     </span>
                   </div>
                 )

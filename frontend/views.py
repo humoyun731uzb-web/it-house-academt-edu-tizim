@@ -218,8 +218,7 @@ def teacher_dashboard(request):
         messages.error(request, "Siz o'qituvchi emassiz!")
         return redirect("login")
 
-    from datetime import datetime, time, date
-    now = datetime.now()
+    now = timezone.localtime(timezone.now())
     current_time = now.time()
     current_weekday = now.weekday()
     weekday_map = {
@@ -228,7 +227,7 @@ def teacher_dashboard(request):
     }
     today_uz = weekday_map[current_weekday]
 
-    today_date = date.today()
+    today_date = timezone.localdate()
     weekdays_uz = {
         0: "Dushanba", 1: "Seshanba", 2: "Chorshanba",
         3: "Payshanba", 4: "Juma", 5: "Shanba", 6: "Yakshanba"

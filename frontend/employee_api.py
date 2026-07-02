@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login, logout
 from django.db.models import Count, Q
+from django.utils import timezone as tz
 from decimal import Decimal
 from .models import Employee, Group, LessonTime, Attendance, AbsenceReason, Student, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig
 
@@ -343,11 +344,10 @@ def my_groups(request):
     groups = groups.select_related("course", "room").prefetch_related("lesson_times").annotate(
         student_count=Count("students")
     ).distinct().order_by("name")
-    from datetime import date as dt_date, datetime as dt_datetime
-    today_date = dt_date.today()
+    today_date = tz.localdate()
     weekday_map_rev = {0:"dushanba",1:"seshanba",2:"chorshanba",3:"payshanba",4:"juma",5:"shanba",6:"yakshanba"}
     today_uz = weekday_map_rev[today_date.weekday()]
-    current_time = dt_datetime.now().time()
+    current_time = tz.localtime(tz.now()).time()
 
     def _compute_status(g):
         if g.is_date_overdue():
@@ -409,7 +409,7 @@ def group_attendance(request, group_id):
         group = Group.objects.filter(pk=group_id).first()
     if not group:
         return JsonResponse({"error": "Guruh topilmadi"}, status=404)
-    today = date.today()
+    today = tz.localdate()
     sel_year = int(request.GET.get("year", today.year))
     sel_month = int(request.GET.get("month", today.month))
     weekday_map_rev = {0: "dushanba", 1: "seshanba", 2: "chorshanba", 3: "payshanba", 4: "juma", 5: "shanba", 6: "yakshanba"}
@@ -481,7 +481,7 @@ def group_attendance(request, group_id):
     if is_admin:
         can_edit = True
     else:
-        now_time = datetime.now().time()
+        now_time = tz.localtime(tz.now()).time()
         today_uz = weekday_map_rev[today.weekday()]
         for lt in group.lesson_times.all():
             for d_name in lt.days.split(","):
@@ -492,13 +492,13 @@ def group_attendance(request, group_id):
             if can_edit:
                 break
     # Lock attendance if group end date has passed (today or selected month)
-    if group.end_date and group.end_date < date.today():
+    if group.end_date and group.end_date < tz.localdate():
         can_edit = False
     if lesson_dates and group.end_date and group.end_date < month_start:
         can_edit = False
     remaining_days = None
     if group.end_date:
-        remaining = (group.end_date - date.today()).days
+        remaining = (group.end_date - tz.localdate()).days
         remaining_days = remaining if remaining >= 0 else 0
     return JsonResponse({
         "group": {
@@ -521,14 +521,14 @@ def group_attendance(request, group_id):
 
 
 def _teacher_group_data(g, emp, day_filter="", date_filter=""):
-    now = datetime.now()
+    now = tz.localtime(tz.now())
     current_time = now.time()
     current_weekday = now.weekday()
     weekday_map = {0: "dushanba", 1: "seshanba", 2: "chorshanba", 3: "payshanba", 4: "juma", 5: "shanba", 6: "yakshanba"}
     weekday_map_uz = {0: "Dushanba", 1: "Seshanba", 2: "Chorshanba", 3: "Payshanba", 4: "Juma", 5: "Shanba", 6: "Yakshanba"}
     months_uz = {1: "Yanvar", 2: "Fevral", 3: "Mart", 4: "Aprel", 5: "May", 6: "Iyun", 7: "Iyul", 8: "Avgust", 9: "Sentabr", 10: "Oktabr", 11: "Noyabr", 12: "Dekabr"}
     today_uz = weekday_map[current_weekday]
-    today_date = date.today()
+    today_date = tz.localdate()
 
     if g.is_date_overdue():
         return {
@@ -587,8 +587,8 @@ def teacher_dashboard_api(request):
     if not emp.role or emp.role.name not in ("O'qituvchi", "Administrator", "Support Teacher"):
         return JsonResponse({"error": "Faqat o'qituvchilar"}, status=403)
 
-    now = datetime.now()
-    today_date = date.today()
+    now = tz.localtime(tz.now())
+    today_date = tz.localdate()
     weekday_map_uz = {0: "Dushanba", 1: "Seshanba", 2: "Chorshanba", 3: "Payshanba", 4: "Juma", 5: "Shanba", 6: "Yakshanba"}
     months_uz = {1: "Yanvar", 2: "Fevral", 3: "Mart", 4: "Aprel", 5: "May", 6: "Iyun", 7: "Iyul", 8: "Avgust", 9: "Sentabr", 10: "Oktabr", 11: "Noyabr", 12: "Dekabr"}
     today_display = f"{weekday_map_uz[today_date.weekday()]}, {today_date.day} {months_uz[today_date.month]} {today_date.year}"
@@ -644,7 +644,7 @@ def teacher_group_detail_api(request, pk):
     if not group:
         return JsonResponse({"error": "Guruh topilmadi"}, status=404)
 
-    today = date.today()
+    today = tz.localdate()
     students = group.students.all().order_by("first_name")
     today_attendances = Attendance.objects.filter(group=group, date=today)
     att_map = {a.student_id: a.status for a in today_attendances}
@@ -714,14 +714,14 @@ def take_attendance(request):
     except Group.DoesNotExist:
         return JsonResponse({"error": "Guruh topilmadi"}, status=404)
     # Lock attendance if group end date has passed
-    if group.end_date and group.end_date < date.today():
+    if group.end_date and group.end_date < tz.localdate():
         return JsonResponse({"error": "Guruh muddati tugagan, davomatni o'zgartirish mumkin emas"}, status=403)
     # Admin: unrestricted; Teacher: own groups only, today only, within lesson time
     if not is_admin:
         if group.teacher_id != emp.id:
             return JsonResponse({"error": "Siz bu guruhning o'qituvchisi emassiz"}, status=403)
-        today = date.today()
-        now_time = datetime.now().time()
+        today = tz.localdate()
+        now_time = tz.localtime(tz.now()).time()
         weekday_map_rev = {0: "dushanba", 1: "seshanba", 2: "chorshanba", 3: "payshanba", 4: "juma", 5: "shanba", 6: "yakshanba"}
         today_uz = weekday_map_rev[today.weekday()]
         allowed = False
