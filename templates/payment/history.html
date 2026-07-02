@@ -39,6 +39,7 @@
                         <th>Sana</th>
                         <th>O'quvchi</th>
                         <th>Tur</th>
+                        <th>To'lov turi</th>
                         <th>Summa</th>
                         <th>Balans</th>
                         <th>Guruh</th>
@@ -64,6 +65,15 @@
                             <span style="color: #f59e0b; font-weight: 500;"><i class="fas fa-edit"></i> Tuzatish</span>
                             {% endif %}
                         </td>
+                        <td style="color: #64748b; font-size: 13px;">
+                            {% if t.payment_method == 'naqt' %}
+                            <i class="fas fa-money-bill-1" style="color:#16a34a"></i> Naqt
+                            {% elif t.payment_method == 'karta' %}
+                            <i class="fas fa-credit-card" style="color:#2563eb"></i> Karta
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
                         <td style="font-weight: 600; {% if t.amount >= 0 %}color: #16a34a;{% else %}color: #dc2626;{% endif %}">
                             {% if t.amount >= 0 %}+{% endif %}{{ t.amount|floatformat:0 }}
                         </td>
@@ -74,7 +84,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="empty">Tranzaksiyalar mavjud emas</td>
+                        <td colspan="9" class="empty">Tranzaksiyalar mavjud emas</td>
                     </tr>
                     {% endfor %}
                 </tbody>

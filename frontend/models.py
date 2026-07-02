@@ -430,6 +430,7 @@ class Transaction(models.Model):
     transaction_type = models.CharField(max_length=20, choices=Type.choices, verbose_name="Operatsiya turi")
     group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name="transactions", verbose_name="Guruh")
     attendance = models.ForeignKey("Attendance", on_delete=models.SET_NULL, null=True, blank=True, related_name="transactions", verbose_name="Davomat")
+    payment_method = models.CharField(max_length=20, blank=True, default="", verbose_name="To'lov usuli")
     description = models.TextField(blank=True, null=True, verbose_name="Izoh")
     created_by = models.CharField(max_length=255, blank=True, default="", verbose_name="Kim tomonidan")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -441,6 +442,35 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.student} - {self.amount} ({self.get_transaction_type_display()})"
+
+
+class ReceiptTemplate(models.Model):
+    name = models.CharField(max_length=255, verbose_name="Template nomi")
+    is_default = models.BooleanField(default=False, verbose_name="Standart")
+    width = models.CharField(max_length=10, default="80mm", choices=[("58mm", "58 mm"), ("80mm", "80 mm")], verbose_name="Eni")
+    height_mode = models.CharField(max_length=10, default="auto", choices=[("auto", "Avtomatik"), ("custom", "Maxsus")], verbose_name="Balandlik rejimi")
+    height = models.PositiveIntegerField(default=300, verbose_name="Balandlik (mm)")
+    paper_margin = models.PositiveIntegerField(default=0, verbose_name="Qog'oz cheti (mm)")
+    background_color = models.CharField(max_length=7, default="#ffffff", verbose_name="Fon rangi")
+    print_dpi = models.PositiveIntegerField(default=203, verbose_name="Chop etish DPI")
+    thermal_mode = models.BooleanField(default=False, verbose_name="Termal printer rejimi")
+    black_white = models.BooleanField(default=True, verbose_name="Qora-oq rejim")
+    page_padding = models.PositiveIntegerField(default=10, verbose_name="Sahifa ichki cheti (px)")
+    components = models.JSONField(default=list, blank=True, verbose_name="Komponentlar")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Chek shabloni"
+        verbose_name_plural = "Chek shablonlari"
+
+    def save(self, *args, **kwargs):
+        if self.is_default:
+            ReceiptTemplate.objects.filter(is_default=True).exclude(pk=self.pk).update(is_default=False)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
 
 
 class GlobalConfig(models.Model):

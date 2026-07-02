@@ -1,277 +1,362 @@
 {% extends "base.html" %}
 {% load static %}
+{% load humanize %}
 {% block title %}To'lov qilish | Edu Tizim{% endblock %}
 {% block content %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
 <style>
-  .payment-search-wrap {
+  .pay-search-wrap {
     position: relative;
-    max-width: 500px;
-    margin: 0 auto 24px;
+    max-width: 420px;
+    margin: 0 auto 20px;
   }
-  .payment-search-wrap i {
+  .pay-search-wrap i {
     position: absolute;
-    left: 16px;
+    left: 14px;
     top: 50%;
     transform: translateY(-50%);
     color: var(--text-muted);
-    font-size: 1rem;
     pointer-events: none;
+    font-size: 0.9rem;
   }
-  .payment-search {
+  .pay-search {
     width: 100%;
-    height: 48px;
-    padding: 0 16px 0 44px;
-    border: 2px solid var(--border);
-    border-radius: 12px;
-    font-size: 0.95rem;
+    height: 42px;
+    padding: 0 14px 0 40px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
     font-family: var(--font);
     color: var(--text);
     background: white;
-    transition: all 0.2s;
     outline: none;
+    transition: border-color 0.15s;
   }
-  .payment-search:focus {
+  .pay-search:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
   }
-  .payment-student-list {
+  .pay-count {
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+  .pay-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 12px;
+    gap: 10px;
   }
-  .payment-student-card {
+  .pay-card {
     background: white;
-    border: 2px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+  }
+  .pay-card:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-md);
+  }
+  .pay-card-accent {
+    width: 4px;
+    flex-shrink: 0;
+  }
+  .pay-card-accent.green { background: #16a34a; }
+  .pay-card-accent.red { background: #dc2626; }
+  .pay-card-accent.zero { background: #e2e8f0; }
+  .pay-card-body {
+    flex: 1;
+    padding: 14px 16px;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
+    min-width: 0;
   }
-  .payment-student-card:hover {
-    border-color: var(--primary);
-    box-shadow: 0 4px 12px rgba(37,99,235,0.1);
-    transform: translateY(-1px);
-  }
-  .payment-student-card .avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    background: var(--primary-bg);
+  .pay-card-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--primary);
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     font-weight: 700;
     flex-shrink: 0;
   }
-  .payment-student-card .info {
+  .pay-card-info {
     flex: 1;
     min-width: 0;
   }
-  .payment-student-card .info .name {
-    font-size: 0.95rem;
+  .pay-card-name {
+    font-size: 0.92rem;
     font-weight: 600;
     color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .payment-student-card .info .phone {
-    font-size: 0.82rem;
-    color: var(--text-light);
-    margin-top: 2px;
-  }
-  .payment-student-card .info .meta {
+  .pay-card-meta {
     display: flex;
+    align-items: center;
     gap: 8px;
-    margin-top: 4px;
-    flex-wrap: wrap;
-  }
-  .payment-student-card .info .meta span {
-    font-size: 0.75rem;
-    padding: 2px 10px;
-    border-radius: 6px;
-    font-weight: 500;
-  }
-  .badge-balance-positive { background: #dcfce7; color: #16a34a; }
-  .badge-balance-negative { background: #fee2e2; color: #dc2626; }
-  .badge-zero { background: #f1f5f9; color: #64748b; }
-  .badge-remaining { background: #fef3c7; color: #d97706; }
-  .badge-done { background: #dbeafe; color: #1d4ed8; }
-  .no-results {
-    text-align: center;
-    padding: 60px 20px;
+    margin-top: 3px;
+    font-size: 0.78rem;
     color: var(--text-light);
   }
-  .no-results i {
-    font-size: 3rem;
+  .pay-card-meta .group-tag {
+    background: #eff6ff;
+    color: #2563eb;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+  }
+  .pay-card-amount {
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .pay-card-amount .num {
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .pay-card-amount .num.green { color: #16a34a; }
+  .pay-card-amount .num.red { color: #dc2626; }
+  .pay-card-amount .num.zero { color: var(--text-muted); }
+  .pay-card-amount .lbl {
+    font-size: 0.7rem;
     color: var(--text-muted);
+    margin-top: 1px;
+  }
+  .pay-no {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-light);
+  }
+  .pay-no i {
+    font-size: 2.8rem;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    opacity: 0.4;
+  }
+
+  .pay-info-grid {
+    background: #f8fafc;
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
     margin-bottom: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 16px;
   }
-  .pay-modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(15,23,42,0.5);
-    backdrop-filter: blur(4px);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-  .pay-modal-overlay.show { display: flex; }
-  .pay-modal {
-    background: white;
-    border-radius: 16px;
-    width: 100%;
-    max-width: 520px;
-    max-height: 90vh;
+  .pay-info-grid .field {
     display: flex;
     flex-direction: column;
-    box-shadow: 0 25px 50px rgba(0,0,0,0.2);
-    animation: modalIn 0.2s ease;
+    gap: 1px;
   }
-  @keyframes modalIn {
-    from { transform: scale(0.95) translateY(10px); opacity: 0; }
-    to { transform: scale(1) translateY(0); opacity: 1; }
+  .pay-info-grid .field.full {
+    grid-column: 1 / -1;
   }
-  .pay-modal-header {
-    padding: 20px 24px 16px;
-    border-bottom: 1px solid var(--border);
+  .pay-info-grid .field .lbl {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .pay-info-grid .field .val {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .pay-info-grid .field .val.green { color: #16a34a; }
+  .pay-info-grid .field .val.red { color: #dc2626; }
+
+  .pay-remaining {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    font-size: 0.84rem;
+    color: #92400e;
+    display: flex;
+    gap: 10px;
+    line-height: 1.5;
+  }
+  .pay-remaining i {
+    font-size: 1rem;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+  .pay-remaining.paid {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #065f46;
+  }
+  .pay-remaining.paid i { color: #16a34a; }
+  .pay-remaining .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .pay-remaining .row + .row {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px dashed #e2e8f0;
+  }
+  .pay-remaining .lbl { font-size: 0.76rem; color: #92400e; }
+  .pay-remaining.paid .lbl { color: #065f46; }
+  .pay-remaining .num { font-weight: 700; font-size: 0.86rem; white-space: nowrap; }
+  .pay-remaining .num.amber { color: #d97706; }
+  .pay-remaining .num.green { color: #16a34a; }
+
+  .pay-method-group {
+    margin-bottom: 14px;
+  }
+  .pay-method-group label {
+    display: block;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .pay-method-group label i {
+    margin-right: 4px;
+  }
+  .pay-method-options {
+    display: flex;
+    gap: 8px;
+  }
+  .pay-method-option {
+    flex: 1;
+    position: relative;
+  }
+  .pay-method-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .pay-method-option label {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-  }
-  .pay-modal-header h3 { font-size: 1.05rem; font-weight: 700; }
-  .pay-modal-close {
-    width: 32px; height: 32px; border: none;
-    background: #f1f5f9; border-radius: 8px; cursor: pointer;
-    font-size: 1.2rem; color: var(--text-light);
-    display: flex; align-items: center; justify-content: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #f8fafc;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text);
     transition: all 0.15s;
+    margin: 0;
   }
-  .pay-modal-close:hover { background: #e2e8f0; color: var(--text); }
-  .pay-modal-body { padding: 24px; overflow-y: auto; flex: 1; }
-  .pay-student-info {
-    background: #f8fafc; border-radius: 12px; padding: 16px;
-    margin-bottom: 16px; display: grid;
-    grid-template-columns: 1fr 1fr; gap: 12px;
+  .pay-method-option label i {
+    font-size: 0.9rem;
   }
-  .pay-student-info .field { display: flex; flex-direction: column; gap: 2px; }
-  .pay-student-info .field .label {
-    font-size: 0.7rem; font-weight: 600; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: 0.3px;
-  }
-  .pay-student-info .field .value { font-size: 0.9rem; font-weight: 600; color: var(--text); }
-  .pay-student-info .field .value.negative { color: var(--danger); }
-  .pay-student-info .field .value.positive { color: var(--success); }
-  .pay-form-group { margin-bottom: 16px; }
-  .pay-form-group label {
-    display: block; font-size: 0.85rem; font-weight: 600;
-    color: var(--text); margin-bottom: 6px;
-  }
-  .pay-form-group input, .pay-form-group textarea {
-    width: 100%; padding: 12px 14px;
-    border: 2px solid var(--border); border-radius: 10px;
-    font-size: 0.9rem; font-family: var(--font);
-    transition: all 0.2s; background: #f8fafc;
-    color: var(--text); outline: none;
-  }
-  .pay-form-group input:focus, .pay-form-group textarea:focus {
+  .pay-method-option input:checked + label {
     border-color: var(--primary);
-    box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+    background: #eff6ff;
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .pay-method-option input:checked + label i {
+    color: var(--primary);
+  }
+  .pay-method-option label:hover {
+    border-color: var(--primary);
+  }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 1000;
+    background: rgba(15,23,42,0.5); backdrop-filter: blur(2px);
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: white; border-radius: 16px; width: 480px;
+    max-width: 94vw; max-height: 80vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: modalIn .2s ease;
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .pay-form-group {
+    margin-bottom: 14px;
+  }
+  .pay-form-group label {
+    display: block;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 5px;
+  }
+  .pay-form-group label i {
+    margin-right: 4px;
+  }
+  .pay-form-group input,
+  .pay-form-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+    font-family: var(--font);
+    transition: border-color 0.15s;
+    background: #f8fafc;
+    color: var(--text);
+    outline: none;
+  }
+  .pay-form-group input:focus,
+  .pay-form-group textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
     background: white;
   }
-  .pay-remaining-info {
-    background: #fffbeb; border: 1px solid #fde68a;
-    border-radius: 10px; padding: 12px 16px;
-    font-size: 0.85rem; color: #92400e;
-    margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+  .pay-form-group .hint {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    margin-top: 3px;
   }
-  .pay-remaining-info i { font-size: 1.1rem; color: #f59e0b; }
-  .pay-remaining-info.zero {
-    background: #f0fdf4; border-color: #bbf7d0; color: #166534;
-  }
-  .pay-remaining-info.zero i { color: #22c55e; }
   .pay-error {
-    background: #fef2f2; border: 1px solid #fecaca;
-    border-radius: 10px; padding: 12px 16px;
-    font-size: 0.85rem; color: #dc2626;
-    margin-bottom: 16px; display: none; align-items: center; gap: 8px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 0.84rem;
+    color: #dc2626;
+    margin-bottom: 14px;
+    display: none;
+    align-items: center;
+    gap: 8px;
   }
-  .pay-error i { font-size: 1.1rem; color: #dc2626; }
   .pay-error.show { display: flex; }
-  .pay-submit-btn {
-    width: 100%; padding: 14px;
-    background: var(--primary); color: white;
-    border: none; border-radius: 10px;
-    font-size: 1rem; font-weight: 600; cursor: pointer;
-    transition: all 0.2s; font-family: var(--font);
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-  }
-  .pay-submit-btn:hover {
-    background: var(--primary-dark);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37,99,235,0.3);
-  }
-  .pay-submit-btn:disabled {
-    opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none;
-  }
-  .receipt-overlay {
-    display: none; position: fixed; inset: 0;
-    background: rgba(15,23,42,0.5); backdrop-filter: blur(4px);
-    z-index: 1100; align-items: center; justify-content: center; padding: 20px;
-  }
-  .receipt-overlay.show { display: flex; }
-  .receipt {
-    background: white; border-radius: 16px; width: 100%;
-    max-width: 400px; box-shadow: 0 25px 50px rgba(0,0,0,0.2);
-    animation: modalIn 0.2s ease; overflow: hidden;
-  }
-  .receipt-inner { padding: 32px 28px 24px; }
-  .receipt-header {
-    text-align: center; margin-bottom: 20px;
-    padding-bottom: 16px; border-bottom: 2px dashed var(--border);
-  }
-  .receipt-header .logo-text {
-    font-size: 1.3rem; font-weight: 800; color: var(--primary); letter-spacing: 1px;
-  }
-  .receipt-header .receipt-title {
-    font-size: 1.1rem; font-weight: 700; color: var(--text); margin-top: 4px;
-  }
-  .receipt-header .receipt-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
-  .receipt-body { margin-bottom: 16px; }
-  .receipt-row {
-    display: flex; justify-content: space-between;
-    padding: 8px 0; font-size: 0.88rem; border-bottom: 1px solid #f1f5f9;
-  }
-  .receipt-row:last-child { border-bottom: none; }
-  .receipt-row .label { color: var(--text-light); }
-  .receipt-row .value { font-weight: 600; color: var(--text); text-align: right; }
-  .receipt-amount {
-    text-align: center; padding: 16px 0; margin: 12px 0;
-    background: #f0fdf4; border-radius: 12px;
-  }
-  .receipt-amount .amount-label { font-size: 0.8rem; color: var(--text-light); }
-  .receipt-amount .amount-value {
-    font-size: 1.8rem; font-weight: 800; color: #16a34a; margin-top: 4px;
-  }
-  .receipt-footer {
-    text-align: center; padding-top: 16px;
-    border-top: 2px dashed var(--border);
-    font-size: 0.78rem; color: var(--text-muted); font-style: italic;
-  }
-  .receipt-actions {
-    display: flex; gap: 8px; padding: 16px 28px 24px;
-  }
-  .receipt-actions .btn { flex: 1; justify-content: center; padding: 12px; }
+  .pay-error i { color: #dc2626; }
+
   @media (max-width: 640px) {
-    .payment-student-list { grid-template-columns: 1fr; }
-    .pay-student-info { grid-template-columns: 1fr; }
+    .pay-grid { grid-template-columns: 1fr; }
+    .pay-info-grid { grid-template-columns: 1fr; }
+    .pay-remaining .row { flex-direction: column; align-items: flex-start; gap: 0; }
   }
 </style>
 
@@ -282,56 +367,136 @@
   </div>
 </div>
 
-<div class="payment-search-wrap">
+<div class="pay-search-wrap">
   <i class="fas fa-search"></i>
-  <input type="text" class="payment-search" id="studentSearch" placeholder="Ism, familiya yoki telefon raqam bilan qidirish..." oninput="filterStudents()">
+  <input type="text" class="pay-search" id="studentSearch" placeholder="Ism, familiya yoki telefon raqam bilan qidirish..." oninput="filterStudents()" autocomplete="off">
 </div>
+<div class="pay-count" id="studentCount">Jami: {{ student_data|length }} ta o'quvchi</div>
 
-<div class="payment-student-list" id="studentList"></div>
-<div class="no-results" id="noResults" style="display:none;">
+<div class="pay-grid" id="studentList">
+{% for s in student_data %}
+<div class="pay-card" onclick="selectStudent({{ s.id }})" data-student-id="{{ s.id }}" data-phone="{{ s.phone }}">
+  <div class="pay-card-accent {% if s.balance > 0 %}green{% elif s.balance < 0 %}red{% else %}zero{% endif %}"></div>
+  <div class="pay-card-body">
+    <div class="pay-card-avatar">{{ s.first_name|first|upper }}{{ s.last_name|first|upper }}</div>
+    <div class="pay-card-info">
+      <div class="pay-card-name">{{ s.first_name }} {{ s.last_name }}</div>
+      <div class="pay-card-meta">
+        {% if s.groups %}
+        <span class="group-tag">{{ s.groups.0.name }}</span>
+        {% if s.groups|length > 1 %}<span style="font-size:0.7rem;color:#94a3b8;">+{{ s.groups|length|add:"-1" }}</span>{% endif %}
+        {% endif %}
+        <span>{% if s.remaining_month_payment > 0 %}{{ s.remaining_month_payment|floatformat:"0"|intcomma }} so'm qoldi{% else %}To'liq to'langan{% endif %}</span>
+      </div>
+    </div>
+    <div class="pay-card-amount">
+      <div class="num {% if s.balance > 0 %}green{% elif s.balance < 0 %}red{% else %}zero{% endif %}">{% if s.balance > 0 %}+{% endif %}{{ s.balance|floatformat:"0"|intcomma }}</div>
+      <div class="lbl">so'm</div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+</div>
+<div class="pay-no" id="noResults" style="display:none;">
   <i class="fas fa-user-slash"></i>
   <p>Hech qanday o'quvchi topilmadi</p>
 </div>
 
-<div class="pay-modal-overlay" id="paymentModal" onclick="if(event.target===this)closePaymentModal()">
-  <div class="pay-modal">
-    <div class="pay-modal-header">
-      <h3><i class="fas fa-coins" style="color:var(--primary)"></i> To'lov ma'lumotlari</h3>
-      <button class="pay-modal-close" onclick="closePaymentModal()">&times;</button>
+<div class="modal-overlay" id="paymentModal" onclick="if(event.target===this)closePaymentModal()">
+  <div class="modal-box" style="max-width:500px">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e2e8f0;">
+      <h3 style="margin:0;font-size:15px;font-weight:600;color:#0f172a;display:flex;align-items:center;gap:8px;">
+        <i class="fas fa-wallet" style="color:#2563eb"></i> To'lov ma'lumotlari
+      </h3>
+      <button onclick="closePaymentModal()" style="width:28px;height:28px;border-radius:6px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:14px;">
+        <i class="fas fa-times"></i>
+      </button>
     </div>
-    <div class="pay-modal-body">
-      <div class="pay-student-info" id="studentInfo"></div>
-      <div class="pay-remaining-info" id="remainingInfo"></div>
+    <div style="padding:20px;">
+      <div class="pay-info-grid" id="studentInfo"></div>
+      <div class="pay-remaining" id="remainingInfo"></div>
       <div class="pay-error" id="payError"><i class="fas fa-exclamation-circle"></i> <span id="payErrorText"></span></div>
       <div class="pay-form-group">
-        <label>To'lov summasi (so'm)</label>
-        <input type="number" id="payAmount" placeholder="Masalan: 50000" min="0">
+        <label><i class="fas fa-money-bill-wave" style="color:#16a34a"></i>To'lov summasi</label>
+        <input type="number" id="payAmount" placeholder="Masalan: 50 000" min="0">
+        <div class="hint">Eng kam to'lov: 1 000 so'm</div>
+      </div>
+      <div class="pay-method-group">
+        <label><i class="fas fa-credit-card" style="color:#2563eb"></i>To'lov usuli</label>
+        <div class="pay-method-options">
+          <div class="pay-method-option">
+            <input type="radio" name="payment_method" id="payMethodNaqt" value="naqt" checked>
+            <label for="payMethodNaqt"><i class="fas fa-money-bill-1"></i> Naqt</label>
+          </div>
+          <div class="pay-method-option">
+            <input type="radio" name="payment_method" id="payMethodKarta" value="karta">
+            <label for="payMethodKarta"><i class="fas fa-credit-card"></i> Karta</label>
+          </div>
+        </div>
       </div>
       <div class="pay-form-group">
-        <label>Izoh (ixtiyoriy)</label>
+        <label><i class="fas fa-pen" style="color:#94a3b8"></i>Izoh (ixtiyoriy)</label>
         <textarea id="payDescription" rows="2" placeholder="To'lov haqida izoh..."></textarea>
       </div>
-      <button class="pay-submit-btn" id="paySubmit" onclick="submitPayment()">
-        <i class="fas fa-check"></i> To'lovni tasdiqlash
+      <button class="btn btn-primary" id="paySubmit" onclick="submitPayment()" style="width:100%;justify-content:center;padding:12px;">
+        <i class="fas fa-check-circle"></i> To'lovni tasdiqlash
       </button>
     </div>
   </div>
 </div>
 
-<div class="receipt-overlay" id="receiptModal" onclick="if(event.target===this)closeReceipt()">
-  <div class="receipt">
-    <div class="receipt-inner">
-      <div class="receipt-header">
-        <div class="logo-text">IT HOUSE</div>
-        <div class="receipt-title">TO'LOV CHEKI</div>
-        <div class="receipt-sub">Akademiya</div>
+<div class="modal-overlay" id="receiptModal" onclick="if(event.target===this)closeReceipt()">
+  <div class="modal-box" style="max-width:420px;overflow:hidden;padding:0;">
+    <div id="receiptBody" style="font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;padding:28px 24px 16px;">
+      <div class="r-top" style="border-top:3px double #000;margin-bottom:10px;padding-top:4px;"></div>
+      <div class="r-header" style="text-align:center;margin-bottom:8px;">
+        <div style="font-size:22px;font-weight:900;letter-spacing:2.5px;text-transform:uppercase;color:#000;">IT HOUSE ACADEMY</div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-top:2px;color:#000;">SIFATLI TA'LIM MARKAZI</div>
+        <div class="r-receipt-no" style="font-size:10px;margin-top:6px;letter-spacing:0.5px;color:#333;">Chek #<span id="rcptId"></span></div>
       </div>
-      <div class="receipt-body" id="receiptBody"></div>
-      <div class="receipt-footer">Chekni tashlab yubormang!</div>
+      <hr class="r-divider" style="border:none;border-top:1px dashed #000;margin:7px 0;">
+      <div class="r-section-title" style="font-weight:700;font-size:10px;margin:5px 0 3px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #000;padding-bottom:2px;">To'lov ma'lumotlari</div>
+      <div id="rcptRows"></div>
+      <hr class="r-divider" style="border:none;border-top:1px dashed #000;margin:7px 0;">
+      <div class="r-amount-box" style="text-align:center;padding:8px 0;">
+        <div style="font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#555;">To'lov summasi</div>
+        <div class="r-amount-value" style="font-size:18px;font-weight:900;letter-spacing:0.5px;margin-top:2px;color:#000;"></div>
+      </div>
+      <hr class="r-divider" style="border:none;border-top:1px dashed #000;margin:7px 0;">
+      <div class="r-balance" style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;padding:3px 0;"><span>Joriy balans:</span><span class="r-balance-val"></span></div>
+      <hr style="border:none;border-top:2px solid #000;margin:7px 0;">
+      <div class="r-message" style="text-align:center;padding:6px 0;">
+        <div style="font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#000;">HURMATLI O'QUVCHI!</div>
+        <div style="font-size:9px;margin-top:3px;color:#333;">To'lovlarni har oyning 10-sanasidan<br>kechiktirmang iltimos!</div>
+      </div>
+      <hr class="r-divider" style="border:none;border-top:1px dashed #000;margin:7px 0;">
+      <div class="r-footer" style="text-align:center;font-size:9px;margin-top:4px;letter-spacing:0.5px;color:#555;">Chekni tashlab yubormang!</div>
+      <div class="r-qr" style="text-align:center;padding:6px 0 0;">
+        <svg width="64" height="64" viewBox="0 0 100 100">
+          <rect fill="#fff" width="100" height="100"/><rect fill="#000" x="5" y="5" width="35" height="35"/>
+          <rect fill="#fff" x="10" y="10" width="5" height="5"/><rect fill="#fff" x="20" y="10" width="5" height="5"/>
+          <rect fill="#fff" x="30" y="10" width="5" height="5"/><rect fill="#fff" x="10" y="20" width="5" height="5"/>
+          <rect fill="#fff" x="30" y="20" width="5" height="5"/><rect fill="#fff" x="10" y="30" width="5" height="5"/>
+          <rect fill="#fff" x="20" y="30" width="5" height="5"/><rect fill="#fff" x="30" y="30" width="5" height="5"/>
+          <rect fill="#000" x="60" y="5" width="35" height="35"/><rect fill="#fff" x="65" y="10" width="5" height="5"/>
+          <rect fill="#fff" x="75" y="10" width="5" height="5"/><rect fill="#fff" x="85" y="10" width="5" height="5"/>
+          <rect fill="#fff" x="65" y="20" width="5" height="5"/><rect fill="#fff" x="85" y="20" width="5" height="5"/>
+          <rect fill="#fff" x="65" y="30" width="5" height="5"/><rect fill="#fff" x="75" y="30" width="5" height="5"/>
+          <rect fill="#fff" x="85" y="30" width="5" height="5"/><rect fill="#000" x="5" y="60" width="35" height="35"/>
+          <rect fill="#fff" x="10" y="65" width="5" height="5"/><rect fill="#fff" x="20" y="65" width="5" height="5"/>
+          <rect fill="#fff" x="30" y="65" width="5" height="5"/><rect fill="#fff" x="10" y="75" width="5" height="5"/>
+          <rect fill="#fff" x="30" y="75" width="5" height="5"/><rect fill="#fff" x="10" y="85" width="5" height="5"/>
+          <rect fill="#fff" x="20" y="85" width="5" height="5"/><rect fill="#fff" x="30" y="85" width="5" height="5"/>
+          <rect fill="#000" x="50" y="50" width="15" height="15"/><rect fill="#000" x="70" y="60" width="5" height="5"/>
+          <rect fill="#000" x="80" y="60" width="5" height="5"/><rect fill="#fff" x="70" y="70" width="5" height="5"/>
+          <rect fill="#000" x="80" y="70" width="5" height="5"/>
+        </svg>
+        <div style="font-size:8px;margin-top:2px;letter-spacing:0.5px;color:#555;">QR kodni skanerlang</div>
+      </div>
     </div>
-    <div class="receipt-actions">
-      <button class="btn btn-secondary" onclick="closeReceipt()"><i class="fas fa-times"></i> Yopish</button>
-      <button class="btn btn-primary" onclick="printReceipt()"><i class="fas fa-print"></i> Chop etish</button>
+    <div style="display:flex;gap:8px;padding:12px 24px 20px;border-top:1px solid #e2e8f0;background:#f8fafc;">
+      <button class="btn btn-secondary" onclick="closeReceipt()" style="flex:1;justify-content:center;padding:10px;"><i class="fas fa-times"></i> Yopish</button>
+      <button class="btn btn-primary" onclick="printReceipt()" style="flex:1;justify-content:center;padding:10px;"><i class="fas fa-print"></i> Chop etish</button>
     </div>
   </div>
 </div>
@@ -350,48 +515,41 @@
     return '';
   }
 
-  function renderStudents(list) {
-    var container = document.getElementById('studentList');
-    var noResults = document.getElementById('noResults');
-    if (list.length === 0) {
-      container.innerHTML = '';
-      noResults.style.display = 'block';
-      return;
-    }
-    noResults.style.display = 'none';
-    var html = '';
-    for (var i = 0; i < list.length; i++) {
-      var s = list[i];
-      var balanceClass = s.balance > 0 ? 'badge-balance-positive' : (s.balance < 0 ? 'badge-balance-negative' : 'badge-zero');
-      var balanceText = s.balance > 0 ? '+' + formatNum(s.balance) : formatNum(s.balance);
-      var remainingText = s.remaining_month_payment > 0 ? currentMonth + ' oyi: ' + formatNum(s.remaining_month_payment) + ' so\'m' : currentMonth + ' oyi: 0 so\'m';
-      var remainingBadge = s.remaining_month_payment > 0 ? 'badge-remaining' : 'badge-done';
-      var initial = (s.first_name.charAt(0) + s.last_name.charAt(0)).toUpperCase();
-      html += '<div class="payment-student-card" onclick="selectStudent(' + s.id + ')">' +
-        '<div class="avatar">' + initial + '</div>' +
-        '<div class="info">' +
-        '<div class="name">' + s.first_name + ' ' + s.last_name + '</div>' +
-        '<div class="phone">+998 ' + s.phone + '</div>' +
-        '<div class="meta">' +
-        '<span class="' + balanceClass + '">Balans: ' + balanceText + ' so\'m</span>' +
-        '<span class="' + remainingBadge + '">' + remainingText + '</span>' +
-        '</div></div></div>';
-    }
-    container.innerHTML = html;
+  function getAccentClass(balance) {
+    if (balance > 0) return 'green';
+    if (balance < 0) return 'red';
+    return 'zero';
+  }
+
+  function getAmountClass(balance) {
+    if (balance > 0) return 'green';
+    if (balance < 0) return 'red';
+    return 'zero';
   }
 
   function filterStudents() {
     var q = document.getElementById('studentSearch').value.toLowerCase().trim();
-    if (!q) { renderStudents(students); return; }
-    var filtered = [];
-    for (var i = 0; i < students.length; i++) {
-      var s = students[i];
-      var fullName = (s.first_name + ' ' + s.last_name).toLowerCase();
-      var phone = s.phone.replace(/\s/g, '');
+    var cards = document.querySelectorAll('.pay-card');
+    var count = 0;
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i];
+      if (!q) {
+        card.style.display = '';
+        count++;
+        continue;
+      }
+      var name = card.querySelector('.pay-card-name').textContent.toLowerCase();
+      var phone = (card.getAttribute('data-phone') || '').replace(/\s/g, '');
       var qClean = q.replace(/\s/g, '');
-      if (fullName.indexOf(q) !== -1 || phone.indexOf(qClean) !== -1) filtered.push(s);
+      if (name.indexOf(q) !== -1 || phone.indexOf(qClean) !== -1) {
+        card.style.display = '';
+        count++;
+      } else {
+        card.style.display = 'none';
+      }
     }
-    renderStudents(filtered);
+    document.getElementById('noResults').style.display = count > 0 ? 'none' : 'block';
+    document.getElementById('studentCount').textContent = 'Jami: ' + count + ' ta o\'quvchi';
   }
 
   function selectStudent(id) {
@@ -401,35 +559,43 @@
     if (!selectedStudent) return;
     document.getElementById('payError').classList.remove('show');
     var info = document.getElementById('studentInfo');
-    var balanceClass = selectedStudent.balance > 0 ? 'positive' : (selectedStudent.balance < 0 ? 'negative' : '');
+    var balanceCls = selectedStudent.balance > 0 ? 'green' : (selectedStudent.balance < 0 ? 'red' : '');
     var groupsHtml = '';
     if (selectedStudent.groups.length > 0) {
-      groupsHtml = '<div class="field"><span class="label">Guruhlar</span><span class="value">';
+      var gs = [];
       for (var j = 0; j < selectedStudent.groups.length; j++) {
-        groupsHtml += selectedStudent.groups[j].name + ' (' + formatNum(selectedStudent.groups[j].price) + ' so\'m)';
-        if (j < selectedStudent.groups.length - 1) groupsHtml += ', ';
+        gs.push(selectedStudent.groups[j].name + ' (' + formatNum(selectedStudent.groups[j].price) + ' so\'m)');
       }
-      groupsHtml += '</span></div>';
+      groupsHtml = '<div class="field full"><span class="lbl">Guruhlar</span><span class="val">' + gs.join(', ') + '</span></div>';
     }
     info.innerHTML =
-      '<div class="field"><span class="label">Ism familiya</span><span class="value">' + selectedStudent.first_name + ' ' + selectedStudent.last_name + '</span></div>' +
-      '<div class="field"><span class="label">Telefon</span><span class="value">+998 ' + selectedStudent.phone + '</span></div>' +
-      '<div class="field"><span class="label">Joriy balans</span><span class="value ' + balanceClass + '">' + formatNum(selectedStudent.balance) + ' so\'m</span></div>' +
+      '<div class="field"><span class="lbl">Ism familiya</span><span class="val">' + selectedStudent.first_name + ' ' + selectedStudent.last_name + '</span></div>' +
+      '<div class="field"><span class="lbl">Telefon</span><span class="val">+998 ' + selectedStudent.phone + '</span></div>' +
+      '<div class="field"><span class="lbl">Joriy balans</span><span class="val ' + balanceCls + '">' + formatNum(selectedStudent.balance) + ' so\'m</span></div>' +
       groupsHtml;
 
     var remaining = document.getElementById('remainingInfo');
-    if (selectedStudent.remaining_month_payment > 0) {
-      remaining.className = 'pay-remaining-info';
-      remaining.innerHTML = '<i class="fas fa-info-circle"></i> ' + currentMonth + ' oyi oxirigacha yana <strong>' + formatNum(selectedStudent.remaining_month_payment) + ' so\'m</strong> to\'lov qilishingiz kerak';
-    } else {
-      remaining.className = 'pay-remaining-info zero';
-      remaining.innerHTML = '<i class="fas fa-check-circle"></i> ' + currentMonth + ' oyi uchun to\'lanadigan summa: <strong>0 so\'m</strong>';
-    }
+    var expToday = selectedStudent.expected_up_to_today;
+    var remVal = selectedStudent.remaining_month_payment;
+    var isPaid = remVal <= 0;
+    remaining.className = 'pay-remaining' + (isPaid ? ' paid' : '');
+    remaining.innerHTML =
+      '<i class="fas ' + (isPaid ? 'fa-check-circle' : 'fa-info-circle') + '"></i>' +
+      '<div style="flex:1">' +
+      '<div class="row">' +
+      '<span class="lbl">' + (isPaid ? 'Oy uchun to\'lovlar to\'liq qoplangan' : 'Oy oxirigacha to\'lanadigan summa') + '</span>' +
+      '<span class="num ' + (isPaid ? 'green' : 'amber') + '">' + formatNum(remVal) + ' so\'m</span>' +
+      '</div>' +
+      '<div class="row">' +
+      '<span class="lbl">Bugungacha kutilgan to\'lov</span>' +
+      '<span class="num ' + (expToday > 0 ? 'amber' : 'green') + '">' + formatNum(expToday) + ' so\'m</span>' +
+      '</div>' +
+      '</div>';
 
     document.getElementById('payAmount').value = '';
     document.getElementById('payDescription').value = '';
     document.getElementById('paySubmit').disabled = false;
-    document.getElementById('paySubmit').innerHTML = '<i class="fas fa-check"></i> To\'lovni tasdiqlash';
+    document.getElementById('paySubmit').innerHTML = '<i class="fas fa-check-circle"></i> To\'lovni tasdiqlash';
     document.getElementById('paymentModal').classList.add('show');
   }
 
@@ -456,10 +622,14 @@
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Jarayonda...';
 
+    var methodEl = document.querySelector('input[name="payment_method"]:checked');
+    var paymentMethod = methodEl ? methodEl.value : '';
+
     var formData = new FormData();
     formData.append('student_id', selectedStudent.id);
     formData.append('amount', amount);
     formData.append('description', description);
+    formData.append('payment_method', paymentMethod);
 
     fetch('{% url "payment_create" %}', {
       method: 'POST',
@@ -474,7 +644,7 @@
       })
       .then(function(data) {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check"></i> To\'lovni tasdiqlash';
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> To\'lovni tasdiqlash';
         if (data.success) {
           closePaymentModal();
           showReceipt(data);
@@ -482,12 +652,12 @@
         } else {
           showError(data.error || 'Xatolik yuz berdi');
           btn.disabled = false;
-          btn.innerHTML = '<i class="fas fa-check"></i> To\'lovni tasdiqlash';
+          btn.innerHTML = '<i class="fas fa-check-circle"></i> To\'lovni tasdiqlash';
         }
       })
       .catch(function(err) {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check"></i> To\'lovni tasdiqlash';
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> To\'lovni tasdiqlash';
         showError(err.message || 'Xatolik yuz berdi. Qaytadan urinib ko\'ring.');
       });
   }
@@ -500,55 +670,82 @@
         break;
       }
     }
-    filterStudents();
+    var card = document.querySelector('[data-student-id="' + id + '"]');
+    if (card) {
+      var s = null;
+      for (var k = 0; k < students.length; k++) {
+        if (students[k].id === id) { s = students[k]; break; }
+      }
+      if (s) {
+        var numEl = card.querySelector('.pay-card-amount .num');
+        var accentEl = card.querySelector('.pay-card-accent');
+        if (numEl) {
+          numEl.className = 'num ' + getAmountClass(s.balance);
+          numEl.textContent = (s.balance > 0 ? '+' : '') + formatNum(s.balance);
+        }
+        if (accentEl) {
+          accentEl.className = 'pay-card-accent ' + getAccentClass(s.balance);
+        }
+      }
+    }
   }
 
   function showReceipt(data) {
-    document.getElementById('receiptBody').innerHTML =
-      '<div class="receipt-amount">' +
-      '<div class="amount-label">To\'lov summasi</div>' +
-      '<div class="amount-value">' + formatNum(data.amount) + ' so\'m</div>' +
-      '</div>' +
-      '<div class="receipt-row"><span class="label">O\'quvchi</span><span class="value">' + data.student_name + '</span></div>' +
-      '<div class="receipt-row"><span class="label">Admin</span><span class="value">' + data.admin_name + '</span></div>' +
-      '<div class="receipt-row"><span class="label">Sana</span><span class="value">' + data.date + '</span></div>' +
-      '<div class="receipt-row"><span class="label">Balans</span><span class="value">' + formatNum(data.balance) + ' so\'m</span></div>';
+    document.getElementById('rcptId').textContent = data.transaction_id;
+    var rows = '';
+    var fields = [
+      {l:'Filial:', v:'Bosh ofis'},
+      {l:'Kassir:', v:data.admin_name},
+      {l:'Sana:', v:data.date},
+      {l:'Kassa:', v:'Asosiy'},
+      {l:"O'quvchi:", v:data.student_name},
+    ];
+    var phoneMatch = selectedStudent ? selectedStudent.phone : '';
+    fields.push({l:'Telefon:', v:'+998 ' + phoneMatch});
+    fields.push({l:"To'lov turi:", v:data.payment_method || 'Naqt'});
+    fields.push({l:'Tranzaksiya turi:', v:"To'lov"});
+    fields.push({l:'Miqdori:', v:formatNum(data.amount) + " so'm"});
+    for (var i = 0; i < fields.length; i++) {
+      rows += '<div style="display:flex;justify-content:space-between;padding:1.5px 0;font-size:10px;">' +
+        '<span style="font-weight:700;color:#000;">' + fields[i].l + '</span>' +
+        '<span style="color:#000;">' + fields[i].v + '</span></div>';
+    }
+    document.getElementById('rcptRows').innerHTML = rows;
+    document.getElementById('receiptBody').querySelector('.r-amount-value').textContent = formatNum(data.amount) + " so'm";
+    document.getElementById('receiptBody').querySelector('.r-balance-val').textContent = formatNum(data.balance) + " so'm";
     document.getElementById('receiptModal').classList.add('show');
   }
 
   function closeReceipt() { document.getElementById('receiptModal').classList.remove('show'); }
 
   function printReceipt() {
-    var content = document.querySelector('.receipt').cloneNode(true);
-    var actions = content.querySelector('.receipt-actions');
-    if (actions) actions.style.display = 'none';
-    var w = window.open('', '', 'width=400,height=600');
+    var content = document.querySelector('#receiptBody').cloneNode(true);
+    var qr = content.querySelector('.r-qr');
+    if (qr) {
+      var svg = qr.querySelector('svg');
+      if (svg) svg.setAttribute('style', 'width:80px;height:80px;');
+    }
+    var w = window.open('', '', 'width=400,height=700');
     w.document.write(
-      '<html><head><title>To\'lov cheki</title>' +
+      '<!DOCTYPE html><html lang="uz"><head><meta charset="UTF-8"><title>To\'lov cheki</title>' +
       '<style>' +
-      'body{font-family:"Segoe UI",system-ui,sans-serif;padding:20px;margin:0}' +
-      '.receipt{max-width:380px;margin:0 auto}' +
-      '.receipt-inner{padding:24px}' +
-      '.receipt-header{text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px dashed #e2e8f0}' +
-      '.receipt-header .logo-text{font-size:1.3rem;font-weight:800;color:#2563eb;letter-spacing:1px}' +
-      '.receipt-header .receipt-title{font-size:1.1rem;font-weight:700;color:#0f172a;margin-top:4px}' +
-      '.receipt-header .receipt-sub{font-size:0.8rem;color:#64748b}' +
-      '.receipt-amount{text-align:center;padding:16px 0;margin:12px 0;background:#f0fdf4;border-radius:12px}' +
-      '.receipt-amount .amount-label{font-size:0.8rem;color:#64748b}' +
-      '.receipt-amount .amount-value{font-size:1.8rem;font-weight:800;color:#16a34a;margin-top:4px}' +
-      '.receipt-row{display:flex;justify-content:space-between;padding:8px 0;font-size:0.88rem;border-bottom:1px solid #f1f5f9}' +
-      '.receipt-row .label{color:#64748b}' +
-      '.receipt-row .value{font-weight:600;color:#0f172a;text-align:right}' +
-      '.receipt-footer{text-align:center;padding-top:12px;border-top:2px dashed #e2e8f0;font-size:0.78rem;color:#94a3b8;font-style:italic}' +
-      '@media print{body{padding:0}@page{margin:10mm}}' +
+      '*{margin:0;padding:0;box-sizing:border-box}' +
+      'body{width:80mm;margin:0 auto;background:#fff;font-family:"Courier New","Courier",monospace;font-size:10px;color:#000;line-height:1.5;padding:12px;}' +
+      '@media print{body{width:80mm}@page{margin:0}}' +
+      '.r-top{border-top:3px double #000;margin-bottom:8px;padding-top:4px}' +
+      '.r-header{text-align:center;margin-bottom:6px}' +
+      '.r-divider{border:none;border-top:1px dashed #000;margin:7px 0}' +
+      'hr{border:none;border-top:1px dashed #000;margin:7px 0}' +
+      '.r-section-title{font-weight:700;font-size:10px;margin:5px 0 3px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #000;padding-bottom:2px}' +
       '</style></head><body>' + content.innerHTML + '</body></html>'
     );
     w.document.close();
-    setTimeout(function() { w.print(); }, 300);
+    setTimeout(function() { w.print(); }, 500);
   }
 
-  function formatNum(n) { return Number(n).toLocaleString('uz-UZ'); }
-
-  renderStudents(students);
+  function formatNum(n) {
+    var num = Math.round(Number(n));
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
 </script>
 {% endblock %}

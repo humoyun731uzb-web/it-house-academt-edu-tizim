@@ -139,6 +139,10 @@
                     <i class="fas fa-cogs"></i>
                     <span>Boshqaruv</span>
                 </a>
+                <a href="{% url 'receipt_builder' %}" class="nav-item {% if 'receipt' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-receipt"></i>
+                    <span>Chek shablonlari</span>
+                </a>
 
                 <div class="nav-section-label">Marketing va hisobot</div>
                 <a href="#" class="nav-item">

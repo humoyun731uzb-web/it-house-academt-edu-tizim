@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chek #{{ transaction.pk }}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 80mm;
+      margin: 0 auto;
+      background: #fff;
+      font-family: 'Inter', 'Segoe UI', Arial, Helvetica, sans-serif;
+      font-size: 10px;
+      color: #000;
+      line-height: 1.5;
+      padding: 12px;
+      border: 1px solid #000;
+    }
+    @media print {
+      body { width: 80mm; border: none; }
+      @page { margin: 0; }
+    }
+    .rc-top-border { border-top: 3px double #000; margin-bottom: 8px; padding-top: 4px; }
+    .rc-header { text-align: center; margin-bottom: 6px; }
+    .rc-header .logo-text { font-size: 15px; font-weight: 900; letter-spacing: 2.5px; text-transform: uppercase; }
+    .rc-header .title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+    .rc-header .receipt-no { font-size: 9px; margin-top: 6px; letter-spacing: 0.5px; color: #333; }
+    .rc-divider { border: none; border-top: 1px dashed #000; margin: 7px 0; }
+    .rc-divider-thick { border: none; border-top: 2px solid #000; margin: 7px 0; }
+    .rc-row { display: flex; justify-content: space-between; padding: 1.5px 0; font-size: 10px; }
+    .rc-row .lbl { font-weight: 700; flex: 0 0 auto; }
+    .rc-row .val { flex: 1; text-align: right; }
+    .rc-section-title { font-weight: 700; font-size: 10px; margin: 5px 0 3px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px dashed #000; padding-bottom: 2px; }
+    .rc-amount-box { text-align: center; padding: 8px 0; }
+    .rc-amount-box .label { font-size: 7px; text-transform: uppercase; letter-spacing: 1px; color: #555; }
+    .rc-amount-box .value { font-size: 14px; font-weight: 900; letter-spacing: 0.5px; margin-top: 2px; }
+    .rc-message { text-align: center; padding: 6px 0; }
+    .rc-message .main { font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .rc-message .sub { font-weight: 400; font-size: 9px; margin-top: 3px; color: #333; }
+    .rc-footer { text-align: center; font-size: 8px; margin-top: 4px; letter-spacing: 0.5px; color: #555; }
+    .rc-qr { text-align: center; padding: 6px 0; }
+    .rc-qr svg { width: 64px; height: 64px; }
+    .rc-qr span { display: block; font-size: 7px; margin-top: 2px; letter-spacing: 0.5px; color: #555; }
+    .rc-balance { display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; padding: 3px 0; }
+    .rc-barcode { text-align: center; padding: 4px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="rc-top-border"></div>
+
+  <!-- Header -->
+  <div class="rc-header">
+    <div class="logo-text">🏫 IT HOUSE ACADEMY</div>
+    <div class="title">SIFATLI TA'LIM MARKAZI</div>
+    <div class="receipt-no">Chek #{{ transaction.pk }}</div>
+  </div>
+
+  <hr class="rc-divider">
+
+  <!-- Info Section -->
+  <div class="rc-section-title">To'lov ma'lumotlari</div>
+  <div class="rc-row"><span class="lbl">Sana:</span><span class="val">{{ transaction.created_at|date:"d.m.Y H:i" }}</span></div>
+  <div class="rc-row"><span class="lbl">Kassir:</span><span class="val">{{ transaction.created_by|default:"Admin" }}</span></div>
+  {% if transaction.group %}
+  <div class="rc-row"><span class="lbl">Kassa:</span><span class="val">{{ transaction.group.name|default:"Asosiy" }}</span></div>
+  {% endif %}
+  <div class="rc-row"><span class="lbl">O'quvchi:</span><span class="val">{{ transaction.student.first_name }} {{ transaction.student.last_name }}</span></div>
+  <div class="rc-row"><span class="lbl">Telefon:</span><span class="val">{{ transaction.student.phone }}</span></div>
+  {% if transaction.payment_method %}
+  <div class="rc-row"><span class="lbl">To'lov turi:</span><span class="val">{% if transaction.payment_method == 'naqt' %}Naqt{% else %}Karta{% endif %}</span></div>
+  {% endif %}
+  <div class="rc-row"><span class="lbl">Tranzaksiya turi:</span><span class="val">{{ transaction.get_transaction_type_display }}</span></div>
+  <div class="rc-row"><span class="lbl">Miqdori:</span><span class="val">{{ transaction.amount|floatformat:0 }} so'm</span></div>
+
+  <hr class="rc-divider">
+
+  <!-- Amount Box -->
+  <div class="rc-amount-box">
+    <div class="label">To'lov summasi</div>
+    <div class="value">{{ transaction.amount|floatformat:0 }} so'm</div>
+  </div>
+
+  <hr class="rc-divider">
+
+  <!-- Balance -->
+  <div class="rc-balance">
+    <span>Joriy balans:</span>
+    <span>{{ transaction.balance_after|floatformat:0 }} so'm</span>
+  </div>
+
+  {% if transaction.description %}
+  <hr class="rc-divider">
+  <div class="rc-row"><span class="lbl">Izoh:</span><span class="val">{{ transaction.description }}</span></div>
+  {% endif %}
+
+  <hr class="rc-divider-thick">
+
+  <!-- Message -->
+  <div class="rc-message">
+    <div class="main">HURMATLI O'QUVCHI!</div>
+    <div class="sub">To'lovlarni har oyning 10-sanasidan<br>kechiktirmang iltimos!</div>
+  </div>
+
+  <hr class="rc-divider">
+
+  <!-- Footer -->
+  <div class="rc-footer">Chekni tashlab yubormang!</div>
+
+  <!-- QR -->
+  <div class="rc-qr">
+    <svg width="64" height="64" viewBox="0 0 100 100">
+      <rect fill="#fff" width="100" height="100"/>
+      <rect fill="#000" x="5" y="5" width="35" height="35"/>
+      <rect fill="#fff" x="10" y="10" width="5" height="5"/>
+      <rect fill="#fff" x="20" y="10" width="5" height="5"/>
+      <rect fill="#fff" x="30" y="10" width="5" height="5"/>
+      <rect fill="#fff" x="10" y="20" width="5" height="5"/>
+      <rect fill="#fff" x="30" y="20" width="5" height="5"/>
+      <rect fill="#fff" x="10" y="30" width="5" height="5"/>
+      <rect fill="#fff" x="20" y="30" width="5" height="5"/>
+      <rect fill="#fff" x="30" y="30" width="5" height="5"/>
+      <rect fill="#000" x="60" y="5" width="35" height="35"/>
+      <rect fill="#fff" x="65" y="10" width="5" height="5"/>
+      <rect fill="#fff" x="75" y="10" width="5" height="5"/>
+      <rect fill="#fff" x="85" y="10" width="5" height="5"/>
+      <rect fill="#fff" x="65" y="20" width="5" height="5"/>
+      <rect fill="#fff" x="85" y="20" width="5" height="5"/>
+      <rect fill="#fff" x="65" y="30" width="5" height="5"/>
+      <rect fill="#fff" x="75" y="30" width="5" height="5"/>
+      <rect fill="#fff" x="85" y="30" width="5" height="5"/>
+      <rect fill="#000" x="5" y="60" width="35" height="35"/>
+      <rect fill="#fff" x="10" y="65" width="5" height="5"/>
+      <rect fill="#fff" x="20" y="65" width="5" height="5"/>
+      <rect fill="#fff" x="30" y="65" width="5" height="5"/>
+      <rect fill="#fff" x="10" y="75" width="5" height="5"/>
+      <rect fill="#fff" x="30" y="75" width="5" height="5"/>
+      <rect fill="#fff" x="10" y="85" width="5" height="5"/>
+      <rect fill="#fff" x="20" y="85" width="5" height="5"/>
+      <rect fill="#fff" x="30" y="85" width="5" height="5"/>
+      <rect fill="#000" x="50" y="50" width="15" height="15"/>
+      <rect fill="#000" x="70" y="60" width="5" height="5"/>
+      <rect fill="#000" x="80" y="60" width="5" height="5"/>
+      <rect fill="#fff" x="70" y="70" width="5" height="5"/>
+      <rect fill="#000" x="80" y="70" width="5" height="5"/>
+    </svg>
+    <span>QR kodni skanerlang</span>
+  </div>
+
+  <script>
+    window.print();
+  </script>
+</body>
+</html>

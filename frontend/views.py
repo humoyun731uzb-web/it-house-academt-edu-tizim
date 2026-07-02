@@ -10,7 +10,7 @@ from django.utils import timezone
 from datetime import date, timedelta, datetime, timezone as dt_timezone
 import calendar
 from decimal import Decimal
-from .models import Course, Group, Student, MarketingSurvey, StudentLog, LessonTime, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig
+from .models import Course, Group, Student, MarketingSurvey, StudentLog, LessonTime, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate
 from .forms import LoginForm, CourseForm, GroupForm, StudentCreateForm, StudentEditForm, MarketingSurveyForm, FreezeForm, RemoveFromGroupForm, AddToGroupForm, LessonTimeForm, BranchForm, RoomForm, PositionForm, EmployeeForm
 
 
@@ -149,7 +149,7 @@ def sync_attendance_balance(student, group, attendance, new_status, created_by="
     # else: hech narsa qilish shart emas
 
 
-def process_payment(student, amount, description="", created_by=""):
+def process_payment(student, amount, description="", created_by="", payment_method=""):
     """
     To'lovni amalga oshiradi. Avval qarzni (minus balans) qoplaydi,
     qolgan summa balansga qo'shiladi.
@@ -157,15 +157,16 @@ def process_payment(student, amount, description="", created_by=""):
     balance = get_or_create_balance(student)
     balance.balance += amount
     balance.save()
-    Transaction.objects.create(
+    transaction = Transaction.objects.create(
         student=student,
         amount=amount,
         balance_after=balance.balance,
         transaction_type=Transaction.Type.PAYMENT,
+        payment_method=payment_method,
         description=description,
         created_by=created_by,
     )
-    return balance
+    return balance, transaction
 
 
 DAY_NAME_TO_NUM = {"dushanba": 0, "seshanba": 1, "chorshanba": 2, "payshanba": 3, "juma": 4, "shanba": 5, "yakshanba": 6}
@@ -205,6 +206,42 @@ def calculate_remaining_month_payment(student):
         total_expected += remaining_lessons * price
     remaining = total_expected - balance.balance
     return max(remaining, Decimal('0.00'))
+
+
+def calculate_expected_payment_up_to_today(student):
+    balance = get_or_create_balance(student)
+    today = date.today()
+    first_of_month = date(today.year, today.month, 1)
+    total_expected = Decimal('0.00')
+    active_groups = student.groups.filter(status='aktiv')
+    for group in active_groups:
+        price = get_student_lesson_price(student, group)
+        if price <= 0:
+            continue
+        lesson_times = LessonTime.objects.filter(group=group)
+        lesson_day_nums = set()
+        for lt in lesson_times:
+            for d_name in lt.days.split(","):
+                d_name = d_name.strip().lower()
+                if d_name in DAY_NAME_TO_NUM:
+                    lesson_day_nums.add(DAY_NAME_TO_NUM[d_name])
+        if not lesson_day_nums:
+            continue
+        lessons_up_to_today = 0
+        current = first_of_month
+        while current <= today:
+            if current.weekday() in lesson_day_nums:
+                lessons_up_to_today += 1
+            current += timedelta(days=1)
+        attended = Attendance.objects.filter(
+            student=student, group=group,
+            date__year=today.year, date__month=today.month,
+            date__lte=today
+        ).count()
+        remaining_lessons = lessons_up_to_today - attended
+        total_expected += remaining_lessons * price
+    net_expected = total_expected - balance.balance
+    return max(net_expected, Decimal('0.00'))
 
 
 @login_required(login_url="login")
@@ -2916,6 +2953,7 @@ def payment_create(request):
         student_id = request.POST.get("student_id")
         amount = request.POST.get("amount", "0")
         description = request.POST.get("description", "").strip()
+        payment_method = request.POST.get("payment_method", "").strip()
         if not student_id or not amount:
             return JsonResponse({"success": False, "error": "O'quvchi va summani kiriting!"})
         try:
@@ -2929,15 +2967,17 @@ def payment_create(request):
         created_by = "Admin"
         if employee:
             created_by = f"{employee.first_name} {employee.last_name or ''}".strip()
-        process_payment(student, amount, description=description, created_by=created_by)
-        balance = get_or_create_balance(student)
+        balance, transaction = process_payment(student, amount, description=description, created_by=created_by, payment_method=payment_method)
+        method_label = "Naqt" if payment_method == "naqt" else ("Karta" if payment_method == "karta" else "")
         return JsonResponse({
             "success": True,
+            "transaction_id": transaction.pk,
             "student_name": f"{student.first_name} {student.last_name}",
             "amount": float(amount),
             "admin_name": created_by,
             "date": timezone.localtime().strftime("%d.%m.%Y %H:%M"),
             "balance": float(balance.balance),
+            "payment_method": method_label,
         })
     students = Student.objects.all().order_by("first_name", "last_name").prefetch_related('groups', 'balance')
     employee = getattr(request.user, 'employee_profile', None)
@@ -2948,6 +2988,7 @@ def payment_create(request):
     for s in students:
         balance = get_or_create_balance(s)
         remaining = calculate_remaining_month_payment(s)
+        expected_up_to_today = calculate_expected_payment_up_to_today(s)
         groups_info = []
         for g in s.groups.filter(status='aktiv'):
             groups_info.append({
@@ -2961,10 +3002,12 @@ def payment_create(request):
             'phone': s.phone,
             'balance': float(balance.balance),
             'remaining_month_payment': float(remaining),
+            'expected_up_to_today': float(expected_up_to_today),
             'groups': groups_info,
         })
     return render(request, "payment/create.html", {
         "students_json": json.dumps(student_data, ensure_ascii=False),
+        "student_data": student_data,
         "admin_name": admin_name,
     })
 
@@ -3033,6 +3076,157 @@ def update_student_lesson_price(request, group_pk, student_pk):
             messages.error(request, "Noto'g'ri narx!")
         return redirect("group_detail", pk=group_pk)
     return redirect("group_detail", pk=group_pk)
+
+
+# ---- Receipt Template Builder ----
+
+@login_required(login_url="login")
+def receipt_builder(request, pk=None):
+    template = None
+    if pk:
+        template = get_object_or_404(ReceiptTemplate, pk=pk)
+    templates = ReceiptTemplate.objects.all().order_by("-is_default", "-updated_at")
+    default_template = ReceiptTemplate.objects.filter(is_default=True).first()
+    return render(request, "receipt/builder.html", {
+        "template": template,
+        "templates": templates,
+        "default_template": default_template,
+        "templates_json": json.dumps([{
+            "id": t.pk, "name": t.name, "is_default": t.is_default,
+        } for t in templates], ensure_ascii=False),
+    })
+
+
+@login_required(login_url="login")
+def receipt_print_preview(request, pk, transaction_id):
+    transaction = get_object_or_404(Transaction, pk=transaction_id)
+    template = get_object_or_404(ReceiptTemplate, pk=pk)
+    settings = {
+        "width": template.width if template else "80mm",
+        "bg_color": template.background_color if template else "#ffffff",
+        "black_white": template.black_white if template else True,
+        "padding": template.page_padding if template else 10,
+    }
+    return render(request, "receipt/print.html", {
+        "transaction": transaction,
+        "settings": settings,
+        "components": json.dumps(template.components if template else []),
+    })
+
+
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+import json as json_lib
+
+
+@login_required(login_url="login")
+@require_http_methods(["GET"])
+def api_receipt_templates(request):
+    templates = ReceiptTemplate.objects.all().order_by("-is_default", "-updated_at")
+    data = []
+    for t in templates:
+        data.append({
+            "id": t.pk, "name": t.name, "is_default": t.is_default,
+            "width": t.width, "height_mode": t.height_mode,
+            "background_color": t.background_color, "black_white": t.black_white,
+            "components": t.components, "updated_at": t.updated_at.isoformat(),
+            "thermal_mode": t.thermal_mode, "print_dpi": t.print_dpi,
+            "page_padding": t.page_padding, "paper_margin": t.paper_margin,
+        })
+    return JsonResponse(data, safe=False)
+
+
+@login_required(login_url="login")
+@require_http_methods(["GET", "PUT", "DELETE"])
+def api_receipt_template_detail(request, pk):
+    template = get_object_or_404(ReceiptTemplate, pk=pk)
+    if request.method == "GET":
+        return JsonResponse({
+            "id": template.pk, "name": template.name, "is_default": template.is_default,
+            "width": template.width, "height_mode": template.height_mode,
+            "height": template.height, "paper_margin": template.paper_margin,
+            "background_color": template.background_color, "print_dpi": template.print_dpi,
+            "thermal_mode": template.thermal_mode, "black_white": template.black_white,
+            "page_padding": template.page_padding, "components": template.components,
+        })
+    elif request.method == "PUT":
+        try:
+            data = json_lib.loads(request.body)
+            template.name = data.get("name", template.name)
+            template.width = data.get("width", template.width)
+            template.height_mode = data.get("height_mode", template.height_mode)
+            template.height = data.get("height", template.height)
+            template.paper_margin = data.get("paper_margin", template.paper_margin)
+            template.background_color = data.get("background_color", template.background_color)
+            template.print_dpi = data.get("print_dpi", template.print_dpi)
+            template.thermal_mode = data.get("thermal_mode", template.thermal_mode)
+            template.black_white = data.get("black_white", template.black_white)
+            template.page_padding = data.get("page_padding", template.page_padding)
+            template.components = data.get("components", template.components)
+            if data.get("is_default"):
+                template.is_default = True
+            template.save()
+            return JsonResponse({"success": True, "id": template.pk})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=400)
+    elif request.method == "DELETE":
+        template.delete()
+        return JsonResponse({"success": True})
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def api_receipt_template_create(request):
+    try:
+        data = json_lib.loads(request.body)
+        template = ReceiptTemplate.objects.create(
+            name=data.get("name", "Yangi shablon"),
+            width=data.get("width", "80mm"),
+            height_mode=data.get("height_mode", "auto"),
+            height=data.get("height", 300),
+            paper_margin=data.get("paper_margin", 0),
+            background_color=data.get("background_color", "#ffffff"),
+            print_dpi=data.get("print_dpi", 203),
+            thermal_mode=data.get("thermal_mode", False),
+            black_white=data.get("black_white", True),
+            page_padding=data.get("page_padding", 10),
+            components=data.get("components", []),
+        )
+        if data.get("is_default"):
+            template.is_default = True
+            template.save()
+        return JsonResponse({"success": True, "id": template.pk})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=400)
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def api_receipt_template_duplicate(request, pk):
+    original = get_object_or_404(ReceiptTemplate, pk=pk)
+    try:
+        data = json_lib.loads(request.body)
+        new_name = data.get("name", original.name + " (nusxa)")
+    except:
+        new_name = original.name + " (nusxa)"
+    template = ReceiptTemplate.objects.create(
+        name=new_name,
+        width=original.width, height_mode=original.height_mode,
+        height=original.height, paper_margin=original.paper_margin,
+        background_color=original.background_color, print_dpi=original.print_dpi,
+        thermal_mode=original.thermal_mode, black_white=original.black_white,
+        page_padding=original.page_padding, components=original.components,
+    )
+    return JsonResponse({"success": True, "id": template.pk})
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def api_receipt_template_set_default(request, pk):
+    template = get_object_or_404(ReceiptTemplate, pk=pk)
+    template.is_default = True
+    template.save()
+    return JsonResponse({"success": True, "default_id": template.pk})
 
 
 # ---- Student Web Interface ----

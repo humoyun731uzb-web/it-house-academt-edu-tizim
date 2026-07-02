@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Course, MarketingSurvey, Group, Student, LessonTime, StudentLog, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, VerificationCode, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig
+from .models import Course, MarketingSurvey, Group, Student, LessonTime, StudentLog, Branch, Room, Role, Position, Employee, Attendance, AbsenceReason, GroupLog, VerificationCode, StudentBalance, Transaction, StudentLessonPrice, GlobalConfig, ReceiptTemplate
 
 admin.site.register(Course)
 admin.site.register(MarketingSurvey)
@@ -20,6 +20,8 @@ admin.site.register(StudentBalance)
 admin.site.register(StudentLessonPrice)
 admin.site.register(GlobalConfig)
 
+
+admin.site.register(ReceiptTemplate)
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
